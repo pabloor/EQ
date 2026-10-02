@@ -451,6 +451,58 @@ void DynMeter::paint (juce::Graphics& g)
 }
 
 //==============================================================================
+void FilterGraph::paint (juce::Graphics& g)
+{
+    const auto r = getLocalBounds().toFloat();
+    g.setColour (Theme::screen);
+    g.fillRoundedRectangle (r, 4.0f);
+
+    const float minDb = -48.0f, maxDb = 6.0f;
+    auto yFor = [&] (float db) { return r.getBottom() - r.getHeight() * (juce::jlimit (minDb, maxDb, db) - minDb) / (maxDb - minDb); };
+    auto xFor = [&] (double f) { return r.getX() + r.getWidth() * (float) (std::log (f / 20.0) / std::log (1000.0)); };
+
+    for (float db : { 0.0f, -12.0f, -24.0f, -36.0f })
+    {
+        g.setColour (Theme::text.withAlpha (db == 0.0f ? 0.25f : 0.08f));
+        g.drawHorizontalLine ((int) yFor (db), r.getX(), r.getRight());
+    }
+    for (double f : { 100.0, 1000.0, 10000.0 })
+    {
+        g.setColour (Theme::text.withAlpha (0.07f));
+        g.drawVerticalLine ((int) xFor (f), r.getY(), r.getBottom());
+    }
+
+    const double sr = proc.getSampleRate() > 0 ? proc.getSampleRate() : 44100.0;
+    const bool on = proc.apvts.getRawParameterValue (EQ::onId (band))->load() > 0.5f;
+    const auto bf = EQ::makeBand (band, proc.apvts, sr);
+    const auto colour = EQ::bandColours[band].withAlpha (on ? 1.0f : 0.35f);
+
+    juce::Path curve;
+    const int w = juce::jmax (2, (int) r.getWidth());
+    for (int i = 0; i < w; ++i)
+    {
+        const double f = 20.0 * std::pow (1000.0, (double) i / (w - 1));
+        const float db = juce::Decibels::gainToDecibels ((float) bf.magnitude (f, sr), -80.0f);
+        const float x = r.getX() + (float) i, y = yFor (db);
+        if (i == 0) curve.startNewSubPath (x, y); else curve.lineTo (x, y);
+    }
+
+    juce::Path fill (curve);
+    fill.lineTo (r.getRight(), r.getBottom());
+    fill.lineTo (r.getX(), r.getBottom());
+    fill.closeSubPath();
+    g.setColour (colour.withAlpha (on ? 0.22f : 0.08f));
+    g.fillPath (fill);
+    g.setColour (colour);
+    g.strokePath (curve, juce::PathStrokeType (1.8f));
+
+    // Frecuencia de corte
+    const float fc = proc.apvts.getRawParameterValue (EQ::freqId (band))->load();
+    g.setColour (colour.withAlpha (0.55f));
+    g.drawVerticalLine ((int) xFor (fc), r.getY(), r.getBottom());
+}
+
+//==============================================================================
 LevelMeter::LevelMeter (MedidoresEQAudioProcessor& p, bool isInput, const juce::String& title)
     : proc (p), input (isInput), caption (title)
 {
@@ -597,8 +649,16 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             typeAttachments[b] = std::make_unique<ButtonAttachment> (proc.apvts, EQ::typeId (b), typeButton[b]);
             addAndMakeVisible (typeButton[b]);
         }
-        addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
-        placementBox[b].setTooltip (EQ::utf8 ("Dónde actúa la banda: en el estéreo completo, solo en el Mid o solo en el Side."));
+        if (EQ::isCut (b))
+        {
+            filterGraph[b] = std::make_unique<FilterGraph> (proc, b);
+            addAndMakeVisible (*filterGraph[b]);
+        }
+        else
+        {
+            addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
+            placementBox[b].setTooltip (EQ::utf8 ("Dónde actúa la banda: en el estéreo completo, solo en el Mid o solo en el Side."));
+        }
 
         if (EQ::hasDyn (b))
         {
@@ -857,16 +917,17 @@ void MedidoresEQAudioProcessorEditor::resized()
 
         if (EQ::isCut (b))
         {
-            // Paso alto (arriba) y paso bajo (abajo) en la misma columna: lámpara, frecuencia, pendiente y canal.
+            // Paso alto (arriba) y paso bajo (abajo) en la misma columna: lámpara, frecuencia, pendiente y la gráfica del filtro.
             const int blockH = (colBottom - colTop) / 2;
             const int top = colTop + (b == EQ::LowPass ? blockH + 6 : 0);
             const int avail = blockH - (b == EQ::LowPass ? 6 : 0);
-            const int knobH = juce::jmin (110, avail - 26 - 2 * 24 - 12);
+            const int knobH = juce::jmin (rowH, avail - 26 - 24 - 60);   // deja al menos 60 px para la gráfica
 
             toggles[b].setBounds (x + 8, top + 2, colW - 12, 26);
             place (knobs[b][0], { x, top + 30, colW, knobH });
             slopeBox[b].setBounds (x + 10, top + 30 + knobH + 4, colW - 20, 24);
-            placementBox[b].setBounds (x + 10, top + 30 + knobH + 32, colW - 20, 24);
+            const int graphY = top + 30 + knobH + 4 + 24 + 6;
+            filterGraph[b]->setBounds (x + 10, graphY, colW - 20, juce::jmax (30, top + avail - graphY - 4));
             continue;
         }
 

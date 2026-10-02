@@ -73,6 +73,19 @@ private:
     float held = -100.0f;
 };
 
+// Respuesta de un filtro paso alto/bajo: curva en dB (de -48 a +6) sobre el eje de frecuencias, con la frecuencia de corte marcada.
+class FilterGraph : public juce::Component, private juce::Timer
+{
+public:
+    FilterGraph (MedidoresEQAudioProcessor& p, int bandIndex) : proc (p), band (bandIndex) { startTimerHz (15); }
+    void paint (juce::Graphics&) override;
+
+private:
+    void timerCallback() override { repaint(); }
+    MedidoresEQAudioProcessor& proc;
+    int band;
+};
+
 // Barra de una banda dinámica: cuánto de su ganancia máxima se está aplicando ahora mismo.
 class DynMeter : public juce::Component, private juce::Timer
 {
@@ -152,6 +165,7 @@ private:
     // EQ dinámico: botón por banda, con su medidor, umbral, ratio, ataque y release.
     juce::ToggleButton dynToggle[EQ::NumBands];
     std::unique_ptr<DynMeter> dynMeter[EQ::NumBands];
+    std::unique_ptr<FilterGraph> filterGraph[EQ::NumBands];   // solo en los filtros de corte
     std::unique_ptr<ButtonAttachment> dynAttachments[EQ::NumBands];
     Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob[EQ::NumBands], releaseKnob[EQ::NumBands];
 

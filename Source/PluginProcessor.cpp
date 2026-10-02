@@ -84,8 +84,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
                 AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
         }
 
-        layout.add (std::make_unique<AudioParameterChoice> (
-            ParameterID { EQ::chId (b), 1 }, name + " canal", EQ::placementNames(), 0));
+        if (! EQ::isCut (b))   // los filtros de corte no tienen Mid/Side
+            layout.add (std::make_unique<AudioParameterChoice> (
+                ParameterID { EQ::chId (b), 1 }, name + " canal", EQ::placementNames(), 0));
     }
 
     layout.add (std::make_unique<AudioParameterChoice> (

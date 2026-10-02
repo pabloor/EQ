@@ -5,7 +5,7 @@
 
 // Ecualizador de 6 bandas: paso alto, shelf de graves, dos campanas, shelf de agudos y paso bajo.
 //  - Pasos alto/bajo con pendiente ajustable (6/12/24/48 dB/oct).
-//  - Cada banda puede actuar sobre el estéreo completo, solo sobre el Mid o solo sobre el Side.
+//  - Cada banda de campana/shelf puede actuar sobre el estéreo completo, solo sobre el Mid o solo sobre el Side (los filtros de corte, siempre en estéreo).
 //  - Los shelves pueden conmutarse a campana.
 //  - Las bandas que no son de corte pueden ser dinámicas (la ganancia depende del nivel en esa banda).
 //  - Estilo de curva (Moderna, Clásica, Americana, Vintage): cómo cambia la Q con la ganancia.
@@ -209,8 +209,10 @@ namespace EQ
     }
 
     // Dónde actúa la banda: 0 = estéreo (L/R), 1 = Mid, 2 = Side.
+    // Los filtros paso alto/bajo siempre actúan en estéreo: en Mid/Side desfasarían los graves entre Mid y Side.
     inline int placement (int b, const juce::AudioProcessorValueTreeState& apvts)
     {
+        if (isCut (b)) return 0;
         return juce::jlimit (0, 2, (int) apvts.getRawParameterValue (chId (b))->load());
     }
 }
