@@ -623,7 +623,7 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
     addCombo (styleBox, styleAttachment, EQ::styleId, EQ::styleNames());
     characterBox.setTooltip (EQ::utf8 ("Tipo de saturación: limpio, cinta o válvula."));
     styleBox.setTooltip (EQ::utf8 ("Cómo cambia la Q de las campanas con la ganancia."));
-    characterLabel.setText (EQ::utf8 ("Car\u00e1cter").toUpperCase(), juce::dontSendNotification);
+    characterLabel.setText (EQ::utf8 ("CAR\u00c1CTER"), juce::dontSendNotification);   // las tildes no pasan por toUpperCase()
     styleLabel.setText (juce::String ("Estilo de curva").toUpperCase(), juce::dontSendNotification);
     for (auto* l : { &characterLabel, &styleLabel })
     {
@@ -786,7 +786,7 @@ void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
     {
         drawPanel (panel->toFloat(), Theme::accent);
         g.setColour (Theme::text);
-        g.drawText ((panel == &gainPanel ? EQ::utf8 ("Ganancia") : EQ::utf8 ("Saturaci\u00f3n")).toUpperCase(),
+        g.drawText (panel == &gainPanel ? EQ::utf8 ("GANANCIA") : EQ::utf8 ("SATURACI\u00d3N"),
                     panel->getX(), panelTitleY + 4, panel->getWidth(), 22, juce::Justification::centred);
     }
 }
