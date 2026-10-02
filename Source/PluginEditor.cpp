@@ -347,6 +347,10 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
     }
     addKnob (outKnob, EQ::outId, "Compensación", " dB");
+    addKnob (driveKnob, EQ::driveId, "Drive", " %");
+    addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
+    propQAttachment = std::make_unique<ButtonAttachment> (proc.apvts, EQ::propQId, propQButton);
+    addAndMakeVisible (propQButton);
 
     setSize (900, 660);
 }
@@ -489,5 +493,9 @@ void MedidoresEQAudioProcessorEditor::resized()
         }
     }
 
-    place (outKnob, { area.getX() + EQ::NumBands * colW, area.getY(), colW, rowH });
+    const int lastCol = area.getX() + EQ::NumBands * colW;
+    place (outKnob, { lastCol, area.getY(), colW, rowH });
+    place (driveKnob, { lastCol, area.getY() + rowH, colW, rowH });
+    characterBox.setBounds (lastCol + 8, area.getY() + 2 * rowH + 6, colW - 16, 24);
+    propQButton.setBounds (lastCol + 8, area.getY() + 2 * rowH + 38, colW - 8, 24);
 }

@@ -102,7 +102,11 @@ private:
     Knob knobs[EQ::NumBands][3];   // [banda][0=frecuencia, 1=ganancia, 2=Q]
     juce::ComboBox slopeBox[EQ::NumBands], placementBox[EQ::NumBands];
     std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
-    Knob outKnob;
+    Knob outKnob, driveKnob;
+    juce::ComboBox characterBox;
+    std::unique_ptr<ComboAttachment> characterAttachment;
+    juce::ToggleButton propQButton { "Q proporcional" };
+    std::unique_ptr<ButtonAttachment> propQAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
 };

@@ -30,6 +30,10 @@ namespace EQ
     inline juce::String slopeId (int b) { return juce::String (bands[b].id) + "_slope"; }
     inline juce::String chId    (int b) { return juce::String (bands[b].id) + "_ch"; }
     inline const char* outId = "out_gain";
+    inline const char* driveId = "drive";
+    inline const char* characterId = "character";
+    inline const char* propQId = "prop_q";
+    inline juce::StringArray characterNames() { return { "Limpio", "Cinta", "Válvula" }; }
 
     inline juce::StringArray slopeNames()     { return { "6 dB/oct", "12 dB/oct", "24 dB/oct", "48 dB/oct" }; }
     inline juce::StringArray placementNames() { return { "Estéreo", "Mid", "Side" }; }
@@ -96,7 +100,10 @@ namespace EQ
         }
 
         const float g = apvts.getRawParameterValue (gainId (b))->load();
-        const float q = apvts.getRawParameterValue (qId (b))->load();
+        float q = apvts.getRawParameterValue (qId (b))->load();
+        // Q proporcional (estilo EQ analógico): la campana se estrecha al aumentar la ganancia.
+        if ((b == Bell1 || b == Bell2) && apvts.getRawParameterValue (propQId)->load() > 0.5f)
+            q *= 1.0f + 0.1f * std::abs (g);
         const float gain = juce::Decibels::decibelsToGain (g);
         switch (b)
         {
@@ -153,6 +160,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void updateFilters (bool force);
+    void saturate (juce::AudioBuffer<float>&);
     void processBand (juce::AudioBuffer<float>&, int band);
 
     using Filter = juce::dsp::IIR::Filter<float>;
@@ -160,6 +168,13 @@ private:
     int numStages[EQ::NumBands] {};
     std::array<float, 6> lastParams[EQ::NumBands] {};  // para recalcular coeficientes solo si algo cambia
     juce::dsp::Gain<float> outGain;
+
+    // Saturación analógica (cinta/válvula) con sobremuestreo 2x.
+    juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };
+    int maxBlockSize = 512;
+    float lastAmount = 0.0f;
+    bool satWasActive = false;
+    float dcX[2] {}, dcY[2] {};
     double currentRate = 44100.0;
 
     std::atomic<float> inPeak[2] { 0.0f, 0.0f }, outPeak[2] { 0.0f, 0.0f };
