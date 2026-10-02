@@ -7,6 +7,9 @@ MedidoresEQAudioProcessor::MedidoresEQAudioProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "STATE", createLayout())
 {
+    // El host puede consultar la latencia antes de preparar la reproducción: se fija ya aquí.
+    oversampler.initProcessing (512);
+    setLatencySamples (juce::roundToInt (oversampler.getLatencyInSamples()));
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::createLayout()

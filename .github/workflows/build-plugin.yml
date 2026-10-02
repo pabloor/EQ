@@ -39,7 +39,8 @@ jobs:
       - name: Prueba de latencia
         run: |
           cmake --build build --config Release --parallel --target EQLatencyTest
-          "$(find build -type f -name EQLatencyTest | head -1)"
+          mkdir -p docs
+          "$(find build -type f -name EQLatencyTest | head -1)" | tee docs/latencia.txt
       - name: Captura de la interfaz
         if: ${{ inputs.screenshot }}
         run: |
@@ -49,7 +50,7 @@ jobs:
           "$BIN" docs/screenshot.png
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/*.png
+          git add docs/*
           git commit -m "Captura de la interfaz" || true
           git push origin HEAD:main
       - name: Validar el Audio Unit (auval)
