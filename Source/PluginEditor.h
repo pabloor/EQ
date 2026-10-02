@@ -140,7 +140,7 @@ private:
     juce::TextButton typeButton[EQ::NumBands];   // shelf -> campana (solo en los shelves)
     std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> typeAttachments[EQ::NumBands];
-    Knob inKnob, outKnob, driveKnob;
+    Knob inKnob, outKnob, driveKnob, mixKnob;
     juce::ComboBox characterBox;
     std::unique_ptr<ComboAttachment> characterAttachment;
     juce::ComboBox styleBox;
@@ -156,7 +156,7 @@ private:
     Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob[EQ::NumBands], releaseKnob[EQ::NumBands];
 
     // Paneles de fondo (se calculan en resized y se dibujan en paint)
-    juce::Rectangle<int> bandPanel[EQ::NumBands], gainPanel, characterPanel;
+    juce::Rectangle<int> bandPanel[EQ::NumBands], characterPanel, inPanel, outPanel;
     int panelTitleY = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)

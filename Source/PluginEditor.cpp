@@ -479,10 +479,6 @@ void LevelMeter::paint (juce::Graphics& g)
     g.setColour (Theme::screen);
     g.fillRoundedRectangle (area, 6.0f);
 
-    g.setColour (Theme::text);
-    g.setFont (juce::Font (juce::FontOptions (12.0f)));
-    g.drawText (caption, getLocalBounds().removeFromTop (20), juce::Justification::centred);
-
     auto readout = getLocalBounds().removeFromBottom (20);
     g.setColour (held > -0.1f ? juce::Colours::red : Theme::text);
     g.drawText (held > -99.0f ? juce::String (held, 1) : "--", readout, juce::Justification::centred);
@@ -491,6 +487,11 @@ void LevelMeter::paint (juce::Graphics& g)
     auto scale = body.removeFromLeft (24.0f);
     const float barW = (body.getWidth() - 4.0f) / 2.0f;
     const float minDb = -60.0f, maxDb = 6.0f;
+
+    g.setColour (Theme::muted);
+    g.setFont (juce::Font (juce::FontOptions (11.0f)));
+    for (int ch = 0; ch < 2; ++ch)   // L y R sobre cada barra
+        g.drawText (ch == 0 ? "L" : "R", juce::Rectangle<float> (body.getX() + (float) ch * (barW + 4.0f), 3.0f, barW, 16.0f), juce::Justification::centred);
     auto yFor = [&] (float db) { return body.getBottom() - body.getHeight() * (juce::jlimit (minDb, maxDb, db) - minDb) / (maxDb - minDb); };
 
     // Barras segmentadas, como un medidor de LEDs de un equipo analógico
@@ -616,15 +617,17 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
     }
     (void) doubleClick;
 
-    addKnob (inKnob, EQ::inId, "Entrada", 70, Theme::accent, EQ::utf8 ("Ganancia de entrada, antes del EQ."));
-    addKnob (outKnob, EQ::outId, "Salida", 70, Theme::accent, EQ::utf8 ("Ganancia de salida, después de la saturación."));
+    addKnob (inKnob, EQ::inId, "Gan", 70, Theme::accent, EQ::utf8 ("Ganancia de entrada, antes del EQ."));
+    addKnob (outKnob, EQ::outId, "Gan", 70, Theme::accent, EQ::utf8 ("Ganancia de salida, después de la saturación."));
     addKnob (driveKnob, EQ::driveId, "Drive", 70, juce::Colour (0xffe8a23c), EQ::utf8 ("Cantidad de saturación (0 % = limpio)."));
+    addKnob (mixKnob, EQ::mixId, "Mezcla", 70, juce::Colour (0xffe8a23c),
+             EQ::utf8 ("Mezcla entre la señal sin saturar y la saturada: por debajo de 100 % es saturación en paralelo."));
     addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
     addCombo (styleBox, styleAttachment, EQ::styleId, EQ::styleNames());
     characterBox.setTooltip (EQ::utf8 ("Tipo de saturación: limpio, cinta o válvula."));
-    styleBox.setTooltip (EQ::utf8 ("Cómo cambia la Q de las campanas con la ganancia."));
-    characterLabel.setText (EQ::utf8 ("CAR\u00c1CTER"), juce::dontSendNotification);   // las tildes no pasan por toUpperCase()
-    styleLabel.setText (juce::String ("Estilo de curva").toUpperCase(), juce::dontSendNotification);
+    styleBox.setTooltip (EQ::utf8 ("Estilo de curva: cómo cambia la Q de las campanas con la ganancia."));
+    characterLabel.setText (EQ::utf8 ("SATURACI\u00d3N"), juce::dontSendNotification);   // las tildes no pasan por toUpperCase()
+    styleLabel.setText ("CURVAS", juce::dontSendNotification);
     for (auto* l : { &characterLabel, &styleLabel })
     {
         l->setJustificationType (juce::Justification::centred);
@@ -649,7 +652,7 @@ void MedidoresEQAudioProcessorEditor::setDynamicsOpen (bool open)
 {
     dynOpen = open;
     proc.apvts.state.setProperty ("dynOpen", open, nullptr);
-    dynExpandButton.setButtonText (open ? EQ::utf8 ("\u25be  Ocultar ajustes de din\u00e1mica") : EQ::utf8 ("\u25b8  Ajustes de din\u00e1mica"));
+    dynExpandButton.setButtonText (open ? EQ::utf8 ("\u25be Din\u00e1mica") : EQ::utf8 ("\u25b8 Din\u00e1mica"));
 
     for (int b = 0; b < EQ::NumBands; ++b)
         if (EQ::hasDyn (b))
@@ -659,7 +662,7 @@ void MedidoresEQAudioProcessorEditor::setDynamicsOpen (bool open)
                 k->label.setVisible (open);
             }
 
-    setSize (980, windowHeight (open));
+    setSize (1040, windowHeight (open));
 }
 
 MedidoresEQAudioProcessorEditor::~MedidoresEQAudioProcessorEditor()
@@ -782,12 +785,13 @@ void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
         drawPanel (bandPanel[b].toFloat(), EQ::bandColours[b]);
 
     g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
-    for (auto* panel : { &gainPanel, &characterPanel })
+    const juce::String titles[] = { EQ::utf8 ("CAR\u00c1CTER"), "ENTRADA", "SALIDA" };
+    const juce::Rectangle<int>* panels[] = { &characterPanel, &inPanel, &outPanel };
+    for (int i = 0; i < 3; ++i)
     {
-        drawPanel (panel->toFloat(), Theme::accent);
+        drawPanel (panels[i]->toFloat(), Theme::accent);
         g.setColour (Theme::text);
-        g.drawText (panel == &gainPanel ? EQ::utf8 ("GANANCIA") : EQ::utf8 ("SATURACI\u00d3N"),
-                    panel->getX(), panelTitleY + 4, panel->getWidth(), 22, juce::Justification::centred);
+        g.drawText (titles[i], panels[i]->getX(), panelTitleY + 4, panels[i]->getWidth(), 22, juce::Justification::centred);
     }
 }
 
@@ -814,14 +818,10 @@ void MedidoresEQAudioProcessorEditor::resized()
     area.removeFromTop (8);
 
     auto curveRow = area.removeFromTop (230);
-    outMeter.setBounds (curveRow.removeFromRight (76));
-    curveRow.removeFromRight (6);
-    inMeter.setBounds (curveRow.removeFromRight (76));
-    curveRow.removeFromRight (6);
     curve.setBounds (curveRow);
     area.removeFromTop (8);
 
-    const int colW = area.getWidth() / (EQ::NumBands + 2);   // bandas + columna de ganancias + columna de saturación
+    const int colW = area.getWidth() / (EQ::NumBands + 3);   // bandas + carácter + entrada + salida
     auto toggleRow = area.removeFromTop (26);
     for (int b = 0; b < EQ::NumBands; ++b)
         toggles[b].setBounds (toggleRow.getX() + b * colW + 8, toggleRow.getY() + 2, colW - 12, toggleRow.getHeight());
@@ -862,23 +862,32 @@ void MedidoresEQAudioProcessorEditor::resized()
         }
     }
 
-    const int gainCol = area.getX() + EQ::NumBands * colW;
-    const int characterCol = gainCol + colW;
-    dynExpandButton.setBounds (gainCol + 10, dynRow.getY() + 4, 2 * colW - 20, 30);
-    place (inKnob,    { gainCol, area.getY(), colW, rowH });
-    place (outKnob,   { gainCol, area.getY() + rowH, colW, rowH });
-    place (driveKnob, { characterCol, area.getY(), colW, rowH });
+    // Columnas de la derecha: CARÁCTER (saturación y estilo de curva), ENTRADA y SALIDA (knob + medidor)
+    const int characterCol = area.getX() + EQ::NumBands * colW;
+    const int inCol = characterCol + colW, outCol = inCol + colW;
+    const int bottomY = comboRow.getBottom() - 4;
 
-    characterLabel.setBounds (characterCol, area.getY() + rowH, colW, 16);
-    characterBox.setBounds (characterCol + 10, area.getY() + rowH + 18, colW - 20, 24);
-    styleLabel.setBounds (characterCol, area.getY() + rowH + 46, colW, 16);
-    styleBox.setBounds (characterCol + 10, area.getY() + rowH + 64, colW - 20, 24);
+    place (driveKnob, { characterCol, area.getY(), colW, rowH });
+    place (mixKnob,   { characterCol, area.getY() + rowH, colW, rowH });
+    const int y3 = area.getY() + 2 * rowH;
+    characterLabel.setBounds (characterCol, y3 + 2, colW, 16);
+    characterBox.setBounds (characterCol + 10, y3 + 18, colW - 20, 24);
+    styleLabel.setBounds (characterCol, y3 + 46, colW, 16);
+    styleBox.setBounds (characterCol + 10, y3 + 62, colW - 20, 24);
+    dynExpandButton.setBounds (characterCol + 10, dynRow.getY() + 4, colW - 20, 30);
+
+    place (inKnob,  { inCol,  area.getY(), colW, rowH });
+    place (outKnob, { outCol, area.getY(), colW, rowH });
+    const int meterY = area.getY() + rowH + 6, meterW = juce::jmin (76, colW - 20);
+    inMeter.setBounds  (inCol  + (colW - meterW) / 2, meterY, meterW, bottomY - meterY);
+    outMeter.setBounds (outCol + (colW - meterW) / 2, meterY, meterW, bottomY - meterY);
 
     // Paneles de fondo: de la fila de interruptores al último desplegable
     const int panelTop = toggleRow.getY() - 3, panelBottom = comboRow.getBottom() + 3;
     for (int b = 0; b < EQ::NumBands; ++b)
         bandPanel[b] = { area.getX() + b * colW + 2, panelTop, colW - 4, panelBottom - panelTop };
-    gainPanel      = { gainCol + 2, panelTop, colW - 4, panelBottom - panelTop };
     characterPanel = { characterCol + 2, panelTop, colW - 4, panelBottom - panelTop };
+    inPanel        = { inCol + 2, panelTop, colW - 4, panelBottom - panelTop };
+    outPanel       = { outCol + 2, panelTop, colW - 4, panelBottom - panelTop };
     panelTitleY = toggleRow.getY() + 2;
 }

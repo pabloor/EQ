@@ -103,6 +103,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
         AudioParameterFloatAttributes().withLabel ("%").withStringFromValueFunction (pctText).withValueFromStringFunction (numParse)));
 
     layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { EQ::mixId, 1 }, EQ::utf8 ("Mezcla saturaci\u00f3n"),
+        NormalisableRange<float> (0.0f, 100.0f, 1.0f), 100.0f,
+        AudioParameterFloatAttributes().withLabel ("%").withStringFromValueFunction (pctText).withValueFromStringFunction (numParse)));
+
+    layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::inId, 1 }, "Entrada",
         NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
         AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (dbText).withValueFromStringFunction (numParse)));
@@ -126,6 +131,7 @@ void MedidoresEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     currentRate = sampleRate;
     maxBlockSize = juce::jmax (1, samplesPerBlock);
     oversampler.initProcessing ((size_t) maxBlockSize);
+    dryBuffer.setSize (2, maxBlockSize);
     satWasActive = false;
     lastAmount = 0.0f;
     updateFilters (true);   // antes de preparar: así cada filtro ya tiene coeficientes de orden 2
@@ -319,8 +325,9 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
     const int character = (int) apvts.getRawParameterValue (EQ::characterId)->load();
     const float drive = apvts.getRawParameterValue (EQ::driveId)->load() / 100.0f;
     const float amount = drive * drive * 6.0f;   // "a": 0 = limpio
+    const float mix = apvts.getRawParameterValue (EQ::mixId)->load() / 100.0f;   // 1 = todo saturado, 0 = todo seco
 
-    const bool active = character != 0 && amount > 1e-3f;
+    const bool active = character != 0 && amount > 1e-3f && mix > 1e-3f;
     if (! active)
     {
         satWasActive = false;
@@ -349,6 +356,12 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
     {
         const int len = juce::jmin (maxBlockSize, buffer.getNumSamples() - start);
         auto sub = channels.getSubBlock ((size_t) start, (size_t) len);
+
+        // Mezcla en paralelo: se guarda la señal seca antes de saturar.
+        const bool blend = mix < 0.999f;
+        if (blend)
+            for (int ch = 0; ch < numCh; ++ch)
+                dryBuffer.copyFrom (ch, 0, sub.getChannelPointer ((size_t) ch), len);
 
         // Cantidad interpolada dentro del bloque para evitar saltos al mover el Drive.
         const float a0 = lastAmount, a1 = amount;
@@ -380,6 +393,14 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
                     dcX[ch] = x; dcY[ch] = y;
                     d[i] = y;
                 }
+            }
+
+        if (blend)
+            for (int ch = 0; ch < numCh; ++ch)
+            {
+                auto* d = sub.getChannelPointer ((size_t) ch);
+                const auto* dry = dryBuffer.getReadPointer (ch);
+                for (int i = 0; i < len; ++i) d[i] = dry[i] * (1.0f - mix) + d[i] * mix;
             }
 
         lastAmount = amount;

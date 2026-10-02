@@ -47,6 +47,7 @@ namespace EQ
     inline const char* inId = "in_gain";
     inline const char* outId = "out_gain";
     inline const char* driveId = "drive";
+    inline const char* mixId = "mix";   // mezcla seco/saturado (saturación en paralelo)
     inline const char* characterId = "character";
     inline const char* styleId = "style";
     inline const char* analyzerId = "an_mode";    // 0 apagado, 1 post-EQ, 2 pre-EQ
@@ -284,6 +285,7 @@ private:
     // Saturación analógica (cinta/válvula) con sobremuestreo 2x.
     juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };
     int maxBlockSize = 512;
+    juce::AudioBuffer<float> dryBuffer;   // señal sin saturar, para la mezcla en paralelo
     float lastAmount = 0.0f;
     bool satWasActive = false;
     float dcX[2] {}, dcY[2] {};

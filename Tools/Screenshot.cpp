@@ -26,7 +26,7 @@ int main (int argc, char** argv)
     setParam (proc, "b2_attack", 3.0f);  setParam (proc, "b2_release", 80.0f);
     setParam (proc, "hs_freq", 9000.0f); setParam (proc, "hs_gain", 3.0f);
     setParam (proc, "lp_freq", 18000.0f);
-    setParam (proc, "drive", 30.0f);     setParam (proc, "character", 2.0f);
+    setParam (proc, "drive", 30.0f);     setParam (proc, "character", 2.0f);   setParam (proc, "mix", 70.0f);
     setParam (proc, "in_gain", 2.0f);
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
