@@ -71,20 +71,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
                 ParameterID { EQ::ratioId (b), 1 }, name + " ratio",
                 NormalisableRange<float> (1.2f, 10.0f, 0.1f, 0.5f), 3.0f,
                 AudioParameterFloatAttributes().withStringFromValueFunction (ratioText).withValueFromStringFunction (numParse)));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { EQ::attackId (b), 1 }, name + " ataque",
+                NormalisableRange<float> (0.5f, 100.0f, 0.5f, 0.5f), 10.0f,
+                AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { EQ::releaseId (b), 1 }, name + " release",
+                NormalisableRange<float> (20.0f, 1000.0f, 1.0f, 0.4f), 150.0f,
+                AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
         }
 
         layout.add (std::make_unique<AudioParameterChoice> (
             ParameterID { EQ::chId (b), 1 }, name + " canal", EQ::placementNames(), 0));
     }
-
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { EQ::attackId, 1 }, EQ::utf8 ("Ataque din\u00e1mica"),
-        NormalisableRange<float> (0.5f, 100.0f, 0.5f, 0.5f), 10.0f,
-        AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { EQ::releaseId, 1 }, EQ::utf8 ("Release din\u00e1mica"),
-        NormalisableRange<float> (20.0f, 1000.0f, 1.0f, 0.4f), 150.0f,
-        AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
 
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { EQ::styleId, 1 }, "Estilo de curva", EQ::styleNames(), 1));
@@ -174,12 +173,12 @@ void MedidoresEQAudioProcessor::updateFilters (bool force)
     for (int b = 0; b < EQ::NumBands; ++b)
         if (EQ::hasDyn (b))
         {
-            dynamic[b].threshold = read (EQ::thrId (b));
-            dynamic[b].ratio = juce::jmax (1.01f, read (EQ::ratioId (b)));
+            auto& d = dynamic[b];
+            d.threshold = read (EQ::thrId (b));
+            d.ratio = juce::jmax (1.01f, read (EQ::ratioId (b)));
+            d.attackCoef  = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::attackId (b)))  * 0.001f * (float) currentRate));
+            d.releaseCoef = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::releaseId (b))) * 0.001f * (float) currentRate));
         }
-
-    attackCoef  = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::attackId))  * 0.001f * (float) currentRate));
-    releaseCoef = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::releaseId)) * 0.001f * (float) currentRate));
 
     inGain.setGainDecibels (read (EQ::inId));
     outGain.setGainDecibels (read (EQ::outId));
@@ -214,7 +213,7 @@ void MedidoresEQAudioProcessor::updateDynamic (juce::AudioBuffer<float>& buffer,
     {
         const float x = mono != nullptr ? mono[i] : (numCh > 1 ? 0.5f * (in0[i] + in1[i]) : in0[i]);
         const float r = std::abs (d.detector.processSample (x));
-        env = r > env ? r + attackCoef * (env - r) : r + releaseCoef * (env - r);
+        env = r > env ? r + d.attackCoef * (env - r) : r + d.releaseCoef * (env - r);
     }
     d.envelope = env;
 

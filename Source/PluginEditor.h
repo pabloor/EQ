@@ -111,10 +111,10 @@ private:
     std::unique_ptr<ComboAttachment> styleAttachment;
     juce::Label characterLabel, styleLabel;
 
-    // EQ dinámico: botón por banda, umbral y ratio por banda, y ataque/release globales.
+    // EQ dinámico: botón por banda, con su umbral, ratio, ataque y release.
     juce::ToggleButton dynToggle[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> dynAttachments[EQ::NumBands];
-    Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob, releaseKnob;
+    Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob[EQ::NumBands], releaseKnob[EQ::NumBands];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
 };

@@ -33,11 +33,13 @@ namespace
             { "Voz: de-esser din\u00e1mico", {
                 { "hp_freq", 90.0f }, { "hp_slope", 2.0f },
                 { "b2_freq", 6500.0f }, { "b2_gain", -8.0f }, { "b2_q", 3.0f },
-                { "b2_dyn", 1.0f }, { "b2_thr", -32.0f }, { "b2_ratio", 4.0f } } },
+                { "b2_dyn", 1.0f }, { "b2_thr", -32.0f }, { "b2_ratio", 4.0f },
+                { "b2_attack", 2.0f }, { "b2_release", 60.0f } } },
             { "Bajo: graves controlados", {
                 { "hp_freq", 35.0f }, { "hp_slope", 2.0f },
                 { "ls_freq", 90.0f }, { "ls_gain", -6.0f }, { "ls_type", 1.0f }, { "ls_q", 1.2f },
-                { "ls_dyn", 1.0f }, { "ls_thr", -22.0f }, { "ls_ratio", 3.0f } } },
+                { "ls_dyn", 1.0f }, { "ls_thr", -22.0f }, { "ls_ratio", 3.0f },
+                { "ls_attack", 25.0f }, { "ls_release", 250.0f } } },
             { "Master: presencia (Mid)", {
                 { "b2_freq", 2500.0f }, { "b2_gain", 2.0f }, { "b2_q", 0.8f }, { "b2_ch", 1.0f } } },
         };

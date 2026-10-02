@@ -364,13 +364,13 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             addAndMakeVisible (dynToggle[b]);
             addKnob (thrKnob[b], EQ::thrId (b), "Umbral", 52);
             addKnob (ratioKnob[b], EQ::ratioId (b), "Ratio", 52);
+            addKnob (attackKnob[b], EQ::attackId (b), "Ataque", 52);
+            addKnob (releaseKnob[b], EQ::releaseId (b), "Release", 52);
         }
     }
     addKnob (inKnob, EQ::inId, "Entrada");
     addKnob (outKnob, EQ::outId, "Salida");
     addKnob (driveKnob, EQ::driveId, "Drive");
-    addKnob (attackKnob, EQ::attackId, "Ataque", 52);
-    addKnob (releaseKnob, EQ::releaseId, "Release", 52);
     addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
     addCombo (styleBox, styleAttachment, EQ::styleId, EQ::styleNames());
     characterLabel.setText (EQ::utf8 ("Car\u00e1cter"), juce::dontSendNotification);
@@ -381,7 +381,7 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         addAndMakeVisible (l);
     }
 
-    setSize (980, 770);
+    setSize (980, 810);
 }
 
 void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, int textBoxWidth)
@@ -486,7 +486,7 @@ void MedidoresEQAudioProcessorEditor::resized()
     deleteButton.setBounds (top.removeFromLeft (80));
     area.removeFromTop (8);
 
-    auto curveRow = area.removeFromTop (240);
+    auto curveRow = area.removeFromTop (220);
     outMeter.setBounds (curveRow.removeFromRight (56));
     curveRow.removeFromRight (6);
     inMeter.setBounds (curveRow.removeFromRight (56));
@@ -507,7 +507,7 @@ void MedidoresEQAudioProcessorEditor::resized()
             typeButton[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
     }
 
-    auto dynRow = area.removeFromBottom (112);   // botón Dinámica + knobs de umbral y ratio
+    auto dynRow = area.removeFromBottom (170);   // botón Dinámica + 4 knobs (umbral, ratio, ataque, release) en 2x2
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
     {
@@ -527,8 +527,10 @@ void MedidoresEQAudioProcessorEditor::resized()
 
             const int x = dynRow.getX() + b * colW;
             dynToggle[b].setBounds (x + 6, dynRow.getY() + 2, colW - 6, 24);
-            place (thrKnob[b],   { x, dynRow.getY() + 28, colW / 2, 84 });
-            place (ratioKnob[b], { x + colW / 2, dynRow.getY() + 28, colW / 2, 84 });
+            place (thrKnob[b],     { x,            dynRow.getY() + 28,  colW / 2, 70 });
+            place (ratioKnob[b],   { x + colW / 2, dynRow.getY() + 28,  colW / 2, 70 });
+            place (attackKnob[b],  { x,            dynRow.getY() + 100, colW / 2, 70 });
+            place (releaseKnob[b], { x + colW / 2, dynRow.getY() + 100, colW / 2, 70 });
         }
     }
 
@@ -542,8 +544,4 @@ void MedidoresEQAudioProcessorEditor::resized()
     characterBox.setBounds (characterCol + 8, area.getY() + rowH + 18, colW - 16, 24);
     styleLabel.setBounds (characterCol, area.getY() + rowH + 46, colW, 16);
     styleBox.setBounds (characterCol + 8, area.getY() + rowH + 64, colW - 16, 24);
-
-    // Ataque y release son globales para todas las bandas dinámicas: van en la fila de dinámica.
-    place (attackKnob,  { gainCol, dynRow.getY() + 28, colW / 2, 84 });
-    place (releaseKnob, { gainCol + colW / 2, dynRow.getY() + 28, colW / 2, 84 });
 }

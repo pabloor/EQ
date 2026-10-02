@@ -42,13 +42,13 @@ namespace EQ
     inline juce::String dynId   (int b) { return juce::String (bands[b].id) + "_dyn"; }
     inline juce::String thrId   (int b) { return juce::String (bands[b].id) + "_thr"; }
     inline juce::String ratioId (int b) { return juce::String (bands[b].id) + "_ratio"; }
+    inline juce::String attackId (int b)  { return juce::String (bands[b].id) + "_attack"; }
+    inline juce::String releaseId (int b) { return juce::String (bands[b].id) + "_release"; }
     inline const char* inId = "in_gain";
     inline const char* outId = "out_gain";
     inline const char* driveId = "drive";
     inline const char* characterId = "character";
     inline const char* styleId = "style";
-    inline const char* attackId = "dyn_attack";
-    inline const char* releaseId = "dyn_release";
 
     inline juce::StringArray slopeNames()     { return { "6 dB/oct", "12 dB/oct", "24 dB/oct", "48 dB/oct" }; }
     inline juce::StringArray placementNames() { return { utf8 ("Estéreo"), "Mid", "Side" }; }
@@ -254,17 +254,17 @@ private:
     int numStages[EQ::NumBands] {};
     std::array<float, 8> lastParams[EQ::NumBands] {};  // para recalcular coeficientes solo si algo cambia
 
-    // EQ dinámico: detector (filtro + seguidor de envolvente) por banda.
+    // EQ dinámico: detector (filtro + seguidor de envolvente) por banda, con su umbral, ratio, ataque y release.
     struct Dynamic
     {
         bool on = false;
         EQ::Settings settings;
         float threshold = -24.0f, ratio = 3.0f;
+        float attackCoef = 0.0f, releaseCoef = 0.0f;
         float envelope = 0.0f;
         Filter detector;
     };
     Dynamic dynamic[EQ::NumBands];
-    float attackCoef = 0.0f, releaseCoef = 0.0f;
     static constexpr int dynamicBlock = 32;   // cada cuántas muestras se actualiza el filtro dinámico
 
     juce::dsp::Gain<float> inGain, outGain;
