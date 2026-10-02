@@ -28,7 +28,7 @@ private:
     float yForDb (float d) const;
     float dbForY (float y) const;
     juce::Point<float> nodePos (int band) const;
-    int hitTest (juce::Point<float> p) const;
+    int nodeAt (juce::Point<float> p) const;
     void setParam (const juce::String& id, float realValue);
     juce::RangedAudioParameter* param (const juce::String& id) const { return proc.apvts.getParameter (id); }
     void gesture (int band, bool begin);

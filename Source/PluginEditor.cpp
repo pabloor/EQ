@@ -31,7 +31,7 @@ juce::Point<float> ResponseCurve::nodePos (int b) const
     return { xForFreq (f), yForDb (g) };
 }
 
-int ResponseCurve::hitTest (juce::Point<float> p) const
+int ResponseCurve::nodeAt (juce::Point<float> p) const
 {
     int best = -1;
     float bestDist = 14.0f;
@@ -171,7 +171,7 @@ void ResponseCurve::gesture (int b, bool begin)
 
 void ResponseCurve::mouseMove (const juce::MouseEvent& e)
 {
-    const int h = hitTest (e.position);
+    const int h = nodeAt (e.position);
     if (h != hovered) { hovered = h; repaint(); }
     setMouseCursor (h >= 0 ? juce::MouseCursor::DraggingHandCursor : juce::MouseCursor::NormalCursor);
 }
@@ -180,7 +180,7 @@ void ResponseCurve::mouseExit (const juce::MouseEvent&) { hovered = -1; repaint(
 
 void ResponseCurve::mouseDown (const juce::MouseEvent& e)
 {
-    dragged = hitTest (e.position);
+    dragged = nodeAt (e.position);
     if (dragged >= 0) gesture (dragged, true);
 }
 
@@ -200,7 +200,7 @@ void ResponseCurve::mouseUp (const juce::MouseEvent&)
 
 void ResponseCurve::mouseDoubleClick (const juce::MouseEvent& e)
 {
-    const int b = hitTest (e.position);
+    const int b = nodeAt (e.position);
     if (b < 0) return;
     if (auto* p = param (EQ::onId (b)))
     {
@@ -212,7 +212,7 @@ void ResponseCurve::mouseDoubleClick (const juce::MouseEvent& e)
 
 void ResponseCurve::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
-    const int b = hitTest (e.position);
+    const int b = nodeAt (e.position);
     if (b < 0) return;
     if (auto* p = param (EQ::qId (b)))
     {
