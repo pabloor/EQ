@@ -100,8 +100,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { EQ::rangeId, 1 }, "Rango de la curva", EQ::rangeNames(), 1, AudioParameterChoiceAttributes().withAutomatable (false)));
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { EQ::themeId, 1 }, "Tema visual", EQ::themeNames(), 0, AudioParameterChoiceAttributes().withAutomatable (false)));
-    layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { EQ::characterId, 1 }, EQ::utf8 ("Car\u00e1cter"), EQ::characterNames(), 1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::driveId, 1 }, "Drive",
