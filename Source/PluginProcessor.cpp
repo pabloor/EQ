@@ -44,8 +44,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
                 NormalisableRange<float> (0.1f, 10.0f, 0.01f, 0.5f), info.q));
 
             if (EQ::hasType (b))
-                layout.add (std::make_unique<AudioParameterChoice> (
-                    ParameterID { EQ::typeId (b), 1 }, name + " tipo", EQ::typeNames(), 0));
+                layout.add (std::make_unique<AudioParameterBool> (
+                    ParameterID { EQ::typeId (b), 1 }, name + " como campana", false));
         }
 
         layout.add (std::make_unique<AudioParameterChoice> (

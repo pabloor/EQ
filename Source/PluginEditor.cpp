@@ -345,7 +345,13 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             addKnob (knobs[b][2], EQ::qId (b), "Q", "");
         }
         if (EQ::hasType (b))
-            addCombo (typeBox[b], typeAttachments[b], EQ::typeId (b), EQ::typeNames());
+        {
+            typeButton[b].setButtonText ("Campana");
+            typeButton[b].setClickingTogglesState (true);
+            typeButton[b].setColour (juce::TextButton::buttonOnColourId, EQ::bandColours[b].darker (0.3f));
+            typeAttachments[b] = std::make_unique<ButtonAttachment> (proc.apvts, EQ::typeId (b), typeButton[b]);
+            addAndMakeVisible (typeButton[b]);
+        }
         addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
     }
     addKnob (outKnob, EQ::outId, "Compensación", " dB");
@@ -477,7 +483,7 @@ void MedidoresEQAudioProcessorEditor::resized()
     {
         placementBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 32, colW - 16, 24);
         if (EQ::hasType (b))
-            typeBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
+            typeButton[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
     }
 
     const int rowH = area.getHeight() / 3;

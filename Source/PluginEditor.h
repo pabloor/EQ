@@ -100,8 +100,10 @@ private:
     juce::ToggleButton toggles[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> toggleAttachments[EQ::NumBands];
     Knob knobs[EQ::NumBands][3];   // [banda][0=frecuencia, 1=ganancia, 2=Q]
-    juce::ComboBox slopeBox[EQ::NumBands], placementBox[EQ::NumBands], typeBox[EQ::NumBands];
-    std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands], typeAttachments[EQ::NumBands];
+    juce::ComboBox slopeBox[EQ::NumBands], placementBox[EQ::NumBands];
+    juce::TextButton typeButton[EQ::NumBands];   // shelf -> campana (solo en los shelves)
+    std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
+    std::unique_ptr<ButtonAttachment> typeAttachments[EQ::NumBands];
     Knob outKnob, driveKnob;
     juce::ComboBox characterBox;
     std::unique_ptr<ComboAttachment> characterAttachment;

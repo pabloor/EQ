@@ -30,8 +30,7 @@ namespace EQ
     inline juce::String slopeId (int b) { return juce::String (bands[b].id) + "_slope"; }
     inline juce::String chId    (int b) { return juce::String (bands[b].id) + "_ch"; }
     inline juce::String typeId  (int b) { return juce::String (bands[b].id) + "_type"; }
-    inline bool hasType (int b) { return b == LowShelf || b == HighShelf; }   // shelf o campana
-    inline juce::StringArray typeNames() { return { "Shelf", "Campana" }; }
+    inline bool hasType (int b) { return b == LowShelf || b == HighShelf; }   // activado = campana en vez de shelf
     inline const char* outId = "out_gain";
     inline const char* driveId = "drive";
     inline const char* characterId = "character";
