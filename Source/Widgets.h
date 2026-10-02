@@ -35,6 +35,8 @@ public:
 
 private:
     static constexpr float startAngle = -2.356f, endAngle = 2.356f;   // -135º .. +135º desde arriba, en sentido horario
+    struct Geometry { juce::Point<float> c; float r, lx, ly; };
+    Geometry geometry() const;
     float angleFor (int index) const;
     void setFromPoint (juce::Point<float> p);
     void select (int index);

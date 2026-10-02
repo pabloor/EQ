@@ -856,6 +856,7 @@ void MedidoresEQAudioProcessorEditor::resized()
     };
 
     const int colTop = toggleRow.getY(), colBottom = comboRow.getBottom();
+    const int filterBlockH = juce::jmin ((colBottom - colTop) / 2, 215);   // en la ventana desplegada no se estiran: el paso bajo va pegado al alto
 
     for (int b = 0; b < EQ::NumBands; ++b)
     {
@@ -864,7 +865,7 @@ void MedidoresEQAudioProcessorEditor::resized()
         if (EQ::isCut (b))
         {
             // Paso alto (arriba) y paso bajo (abajo) en la misma columna: palanca, frecuencia y pendiente.
-            const int blockH = (colBottom - colTop) / 2;
+            const int blockH = filterBlockH;
             const int blockTop = colTop + (b == EQ::LowPass ? blockH + 6 : 0);
             const int avail = blockH - (b == EQ::LowPass ? 6 : 0);
             const int knobH = juce::jmin (rowH + 24, avail - 26 - 24 - 20);
@@ -920,6 +921,6 @@ void MedidoresEQAudioProcessorEditor::resized()
     for (int col = 2; col <= 5; ++col) addSection (col, {});
     addSection (6, EQ::utf8 ("CARÁCTER"));
     addSection (7, "SALIDA");
-    filterSplitY = colTop + (colBottom - colTop) / 2 + 2;
+    filterSplitY = colTop + filterBlockH + 2;
     sectionTitleY = toggleRow.getY() + 2;
 }

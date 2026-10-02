@@ -82,9 +82,21 @@ void RotarySwitch::select (int index)
     attachment.setValueAsCompleteGesture ((float) juce::jlimit (0, labels.size() - 1, index));
 }
 
+// Geometría del selector: el grupo (knob + etiquetas) va pegado al título, no centrado en un componente alto.
+RotarySwitch::Geometry RotarySwitch::geometry() const
+{
+    const float w = (float) getWidth(), h = (float) getHeight();
+    Geometry g;
+    g.r = juce::jmin (w * 0.2f, (h - 16.0f) * 0.2f);
+    g.lx = juce::jmin (w * 0.40f, g.r * 2.4f);
+    g.ly = juce::jmin ((h - 16.0f) * 0.42f, g.r * 2.1f);
+    g.c = { w * 0.5f, juce::jmin (h * 0.58f, 16.0f + g.ly + 14.0f) };
+    return g;
+}
+
 void RotarySwitch::setFromPoint (juce::Point<float> p)
 {
-    const auto c = juce::Point<float> ((float) getWidth() * 0.5f, (float) getHeight() * 0.58f);
+    const auto c = geometry().c;
     const float angle = juce::jlimit (startAngle, endAngle, std::atan2 (p.x - c.x, -(p.y - c.y)));
     const int n = juce::jmax (2, labels.size());
     select (juce::roundToInt ((angle - startAngle) / (endAngle - startAngle) * (float) (n - 1)));
@@ -98,15 +110,14 @@ void RotarySwitch::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWhe
 void RotarySwitch::paint (juce::Graphics& g)
 {
     const auto& P = paletteOf (*this);
-    const float w = (float) getWidth(), h = (float) getHeight();
 
     g.setColour (P.inkMuted);
     g.setFont (juce::Font (juce::FontOptions (11.5f)).withExtraKerningFactor (0.08f));
     g.drawText (title, 0, 0, getWidth(), 16, juce::Justification::centred);
 
-    const juce::Point<float> c (w * 0.5f, h * 0.58f);
-    const float r = juce::jmin (w * 0.2f, (h - 16.0f) * 0.2f);
-    const float lx = juce::jmin (w * 0.40f, r * 2.4f), ly = juce::jmin ((h - 16.0f) * 0.42f, r * 2.1f);   // elipse donde van las posiciones impresas
+    const auto geo = geometry();
+    const auto c = geo.c;
+    const float r = geo.r, lx = geo.lx, ly = geo.ly;   // lx, ly: elipse donde van las posiciones impresas
 
     g.setFont (juce::Font (juce::FontOptions (10.0f)));
     for (int i = 0; i < labels.size(); ++i)
