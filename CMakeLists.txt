@@ -37,3 +37,16 @@ target_compile_definitions(MedidoresEQ PUBLIC
 target_link_libraries(MedidoresEQ
     PRIVATE juce::juce_audio_utils juce::juce_dsp
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# Herramienta de desarrollo: dibuja el editor a un PNG (solo se compila si se pide el objetivo EQScreenshot).
+juce_add_console_app(EQScreenshot PRODUCT_NAME "EQScreenshot")
+target_sources(EQScreenshot PRIVATE
+    Tools/Screenshot.cpp
+    Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp
+    Source/Presets.cpp)
+target_include_directories(EQScreenshot PRIVATE Source)
+target_compile_definitions(EQScreenshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(EQScreenshot
+    PRIVATE juce::juce_audio_utils juce::juce_dsp
+    PUBLIC juce::juce_recommended_config_flags)

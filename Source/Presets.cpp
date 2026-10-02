@@ -1,4 +1,5 @@
 #include "Presets.h"
+#include "PluginProcessor.h"
 
 namespace
 {
@@ -83,7 +84,9 @@ void PresetManager::setParam (const juce::String& id, float value)
 void PresetManager::resetToDefaults()
 {
     for (auto* p : apvts.processor.getParameters())
-        p->setValueNotifyingHost (p->getDefaultValue());
+        if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (! EQ::isViewParam (rp->paramID))   // la vista (analizador, rango) no cambia con los presets
+                p->setValueNotifyingHost (p->getDefaultValue());
 }
 
 void PresetManager::loadFactory (const juce::String& name)

@@ -49,11 +49,20 @@ namespace EQ
     inline const char* driveId = "drive";
     inline const char* characterId = "character";
     inline const char* styleId = "style";
+    inline const char* analyzerId = "an_mode";    // 0 apagado, 1 post-EQ, 2 pre-EQ
+    inline const char* analyzerSpeedId = "an_speed";
+    inline const char* rangeId = "view_range";    // rango vertical de la curva: ±6, ±12, ±24 dB
 
     inline juce::StringArray slopeNames()     { return { "6 dB/oct", "12 dB/oct", "24 dB/oct", "48 dB/oct" }; }
     inline juce::StringArray placementNames() { return { utf8 ("Estéreo"), "Mid", "Side" }; }
     inline juce::StringArray characterNames() { return { "Limpio", "Cinta", utf8 ("Válvula") }; }
     inline juce::StringArray styleNames()     { return { "Moderna", utf8 ("Clásica"), "Americana", "Vintage" }; }
+    inline juce::StringArray analyzerNames()  { return { "Apagado", "Post-EQ", "Pre-EQ" }; }
+    inline juce::StringArray speedNames()     { return { "Lenta", "Media", utf8 ("Rápida") }; }
+    inline juce::StringArray rangeNames()     { return { utf8 ("\u00b16 dB"), utf8 ("\u00b112 dB"), utf8 ("\u00b124 dB") }; }
+    inline float rangeDbFor (int index)       { return index == 0 ? 6.0f : (index == 2 ? 24.0f : 12.0f); }
+    // Ajustes de vista que no se automatizan ni deben cambiar al cargar un preset.
+    inline bool isViewParam (const juce::String& id) { return id == analyzerId || id == analyzerSpeedId || id == rangeId; }
 
     inline const juce::Colour bandColours[NumBands] = {
         juce::Colour (0xffef5350), juce::Colour (0xffffa726), juce::Colour (0xff66bb6a),

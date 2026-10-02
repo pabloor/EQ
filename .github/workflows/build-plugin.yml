@@ -7,6 +7,12 @@ on:
         description: 'Compilar también para Intel (tarda más)'
         type: boolean
         default: false
+      screenshot:
+        description: 'Generar una captura de la interfaz y guardarla en docs/screenshot.png'
+        type: boolean
+        default: false
+permissions:
+  contents: write
 concurrency:
   group: build-plugin
   cancel-in-progress: true
@@ -30,6 +36,18 @@ jobs:
           -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
       - name: Compilar (solo AU y VST3)
         run: cmake --build build --config Release --parallel --target MedidoresEQ_AU MedidoresEQ_VST3
+      - name: Captura de la interfaz
+        if: ${{ inputs.screenshot }}
+        run: |
+          cmake --build build --config Release --parallel --target EQScreenshot
+          BIN=$(find build -type f -name EQScreenshot | head -1)
+          mkdir -p docs
+          "$BIN" docs/screenshot.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshot.png
+          git commit -m "Captura de la interfaz" || true
+          git push origin HEAD:main
       - name: Validar el Audio Unit (auval)
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components

@@ -87,6 +87,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
 
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { EQ::styleId, 1 }, "Estilo de curva", EQ::styleNames(), 1));
+
+    // Ajustes de la vista (no se automatizan).
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { EQ::analyzerId, 1 }, "Analizador", EQ::analyzerNames(), 1, AudioParameterChoiceAttributes().withAutomatable (false)));
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { EQ::analyzerSpeedId, 1 }, "Velocidad analizador", EQ::speedNames(), 1, AudioParameterChoiceAttributes().withAutomatable (false)));
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { EQ::rangeId, 1 }, "Rango de la curva", EQ::rangeNames(), 1, AudioParameterChoiceAttributes().withAutomatable (false)));
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { EQ::characterId, 1 }, EQ::utf8 ("Car\u00e1cter"), EQ::characterNames(), 1));
     layout.add (std::make_unique<AudioParameterFloat> (
@@ -286,6 +294,9 @@ void MedidoresEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     }
     measure (inPeak);
 
+    const int analyzerMode = (int) apvts.getRawParameterValue (EQ::analyzerId)->load();
+    if (analyzerMode == 2) pushAnalyzerSamples (buffer);   // pre-EQ
+
     for (int b = 0; b < EQ::NumBands; ++b) processBand (buffer, b);
 
     saturate (buffer);
@@ -295,7 +306,7 @@ void MedidoresEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     outGain.process (ctx);
 
     measure (outPeak);
-    pushAnalyzerSamples (buffer);
+    if (analyzerMode == 1) pushAnalyzerSamples (buffer);   // post-EQ
 }
 
 // Saturación después del EQ (las bandas muy subidas "empujan" el saturador, como en un equipo analógico).
