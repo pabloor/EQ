@@ -15,9 +15,9 @@ FetchContent_MakeAvailable(JUCE)
 juce_add_plugin(MedidoresEQ
     COMPANY_NAME "Pablo Olivares"
     PLUGIN_MANUFACTURER_CODE Polv
-    PLUGIN_CODE Meq1
+    PLUGIN_CODE Ecu1
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME "Medidores EQ"
+    PRODUCT_NAME "eCU-10"
     AU_MAIN_TYPE kAudioUnitType_Effect
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE

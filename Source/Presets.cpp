@@ -50,8 +50,14 @@ namespace
 
 juce::File PresetManager::folder()
 {
-    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-        .getChildFile ("Medidores EQ").getChildFile ("Presets");
+    const auto base = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
+    const auto folder = base.getChildFile ("eCU-10").getChildFile ("Presets");
+
+    // Migración desde el nombre antiguo del plugin (Medidores EQ): se conservan los presets de usuario.
+    const auto old = base.getChildFile ("Medidores EQ");
+    if (! folder.getParentDirectory().exists() && old.isDirectory())
+        old.moveFileTo (folder.getParentDirectory());
+    return folder;
 }
 
 juce::File PresetManager::fileFor (const juce::String& name)

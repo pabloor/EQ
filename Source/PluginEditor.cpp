@@ -804,11 +804,11 @@ void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
         g.setColour (juce::Colours::white.withAlpha (0.1f));
         g.drawLine (r.getX() + 3.0f, r.getY() + 1.5f, r.getRight() - 3.0f, r.getY() + 1.5f, 1.0f);
         g.setColour (P.ink);
-        g.setFont (juce::Font (juce::FontOptions (12.5f, juce::Font::bold)).withExtraKerningFactor (0.12f));
-        g.drawText ("MEDIDORES EQ", r.withTrimmedRight (46.0f).translated (10.0f, 0.0f), juce::Justification::centredLeft, false);
+        g.setFont (juce::Font (juce::FontOptions (15.0f, juce::Font::bold)).withExtraKerningFactor (0.08f));
+        g.drawText ("eCU-10", r.withTrimmedRight (86.0f).translated (12.0f, 0.0f), juce::Justification::centredLeft, false);
         g.setColour (P.inkMuted);
-        g.setFont (juce::Font (juce::FontOptions (10.0f)));
-        g.drawText ("Mod. 6B", r.withTrimmedLeft (r.getWidth() - 52.0f), juce::Justification::centred, false);
+        g.setFont (juce::Font (juce::FontOptions (9.5f)).withExtraKerningFactor (0.12f));
+        g.drawText ("ECUALIZADOR", r.withTrimmedLeft (r.getWidth() - 92.0f), juce::Justification::centred, false);
     }
 }
 

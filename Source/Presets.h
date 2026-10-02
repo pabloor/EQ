@@ -2,7 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 // Presets de fábrica (definidos en código) y de usuario (archivos XML en
-// ~/Library/Application Support/Medidores EQ/Presets).
+// ~/Library/Application Support/eCU-10/Presets).
 class PresetManager
 {
 public:

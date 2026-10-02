@@ -1,4 +1,4 @@
-name: Construir plugin Medidores EQ
+name: Construir plugin eCU-10
 # Solo a mano (pestaña Actions → Run workflow): los minutos de macOS cuentan x10.
 on:
   workflow_dispatch:
@@ -57,23 +57,23 @@ jobs:
       - name: Validar el Audio Unit (auval)
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
-          cp -R "build/MedidoresEQ_artefacts/Release/AU/Medidores EQ.component" ~/Library/Audio/Plug-Ins/Components/
+          cp -R "build/MedidoresEQ_artefacts/Release/AU/eCU-10.component" ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar || true
-          auval -v aufx Meq1 Polv || { echo "auval falló"; sleep 10; ls ~/Library/Logs/DiagnosticReports; cat ~/Library/Logs/DiagnosticReports/auval* 2>/dev/null | head -80; exit 1; }
+          auval -v aufx Ecu1 Polv || { echo "auval falló"; sleep 10; ls ~/Library/Logs/DiagnosticReports; cat ~/Library/Logs/DiagnosticReports/auval* 2>/dev/null | head -80; exit 1; }
       - name: Validar con pluginval (VST3)
         run: |
           curl -sL https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip -o pluginval.zip
           unzip -q pluginval.zip
-          pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --output-dir pluginval-log "build/MedidoresEQ_artefacts/Release/VST3/Medidores EQ.vst3"
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --output-dir pluginval-log "build/MedidoresEQ_artefacts/Release/VST3/eCU-10.vst3"
       - name: Empaquetar
         if: always()
         run: |
           cd build/MedidoresEQ_artefacts/Release
-          ditto -c -k --keepParent "AU/Medidores EQ.component" "$GITHUB_WORKSPACE/MedidoresEQ-AU.zip"
-          ditto -c -k --keepParent "VST3/Medidores EQ.vst3" "$GITHUB_WORKSPACE/MedidoresEQ-VST3.zip"
+          ditto -c -k --keepParent "AU/eCU-10.component" "$GITHUB_WORKSPACE/eCU-10-AU.zip"
+          ditto -c -k --keepParent "VST3/eCU-10.vst3" "$GITHUB_WORKSPACE/eCU-10-VST3.zip"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MedidoresEQ
-          path: MedidoresEQ-*.zip
+          name: eCU-10
+          path: eCU-10-*.zip
           retention-days: 14
