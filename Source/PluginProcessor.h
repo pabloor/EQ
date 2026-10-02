@@ -283,7 +283,9 @@ private:
     juce::dsp::Gain<float> inGain, outGain;
 
     // Saturación analógica (cinta/válvula) con sobremuestreo 2x.
-    juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, true };   // latencia entera
+    // Filtros FIR de fase lineal: retrasan todas las frecuencias exactamente igual, así la señal seca (retardada con la misma latencia)
+    // y la saturada quedan alineadas en todo el espectro y la mezcla en paralelo no hace peine. Latencia entera.
+    juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple, false, true };
     int maxBlockSize = 512;
     juce::AudioBuffer<float> dryBuffer;   // señal sin saturar y retardada la latencia del saturador (mezcla en paralelo)
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> dryDelay { 128 };

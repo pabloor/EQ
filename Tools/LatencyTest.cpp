@@ -60,11 +60,9 @@ int main()
             if (std::abs (out[(size_t) i]) > std::abs (out[(size_t) peak])) peak = i;
         const int measured = peak - impulseAt;
 
-        // Sin saturación la señal solo se retrasa: la medida tiene que coincidir exactamente. Con saturación, el pico de la
-        // respuesta al impulso del sobremuestreo puede caer a +-1 muestra del retardo de grupo.
-        const bool dryOnly = c.character == 0.0f || c.drive == 0.0f || c.mix == 0.0f;
-        const int tolerance = dryOnly ? 0 : 1;
-        const bool ok = std::abs (measured - reported) <= tolerance;
+        // Los filtros del sobremuestreo son de fase lineal: el pico de la respuesta al impulso cae exactamente en la latencia
+        // informada, con y sin saturación y con cualquier mezcla. No se admite ninguna muestra de diferencia.
+        const bool ok = measured == reported;
         std::printf ("%-22s latencia informada = %d, medida = %d  %s\n", c.name, reported, measured, ok ? "OK" : "FALLO");
         if (! ok) ++failures;
     }
