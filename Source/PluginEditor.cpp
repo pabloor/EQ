@@ -180,7 +180,16 @@ void ResponseCurve::paint (juce::Graphics& g)
         if (on) g.fillEllipse (p.x - r, p.y - r, 2 * r, 2 * r);
         else    g.drawEllipse (p.x - r, p.y - r, 2 * r, 2 * r, 2.0f);
         if (EQ::hasDyn (b) && proc.apvts.getRawParameterValue (EQ::dynId (b))->load() > 0.5f)   // anillo = banda dinámica
+        {
             g.drawEllipse (p.x - r - 4, p.y - r - 4, 2 * r + 8, 2 * r + 8, 1.2f);
+
+            // Punto blanco = ganancia que se está aplicando ahora mismo (entre 0 dB y el máximo que marca el punto de color).
+            const float liveY = yForDb (proc.getDynamicGainDb (b));
+            g.setColour (juce::Colours::white.withAlpha (0.35f));
+            g.drawLine (p.x, p.y, p.x, liveY, 1.5f);
+            g.setColour (juce::Colours::white);
+            g.fillEllipse (p.x - 3.5f, liveY - 3.5f, 7.0f, 7.0f);
+        }
     }
 }
 
@@ -253,6 +262,31 @@ void ResponseCurve::mouseWheelMove (const juce::MouseEvent& e, const juce::Mouse
         p->setValueNotifyingHost (p->convertTo0to1 (juce::jlimit (0.1f, 10.0f, q)));
         p->endChangeGesture();
     }
+}
+
+//==============================================================================
+void DynMeter::paint (juce::Graphics& g)
+{
+    auto r = getLocalBounds().toFloat();
+    g.setColour (juce::Colour (0xff15181d));
+    g.fillRoundedRectangle (r, 3.0f);
+
+    const bool on = proc.apvts.getRawParameterValue (EQ::dynId (band))->load() > 0.5f
+                    && proc.apvts.getRawParameterValue (EQ::onId (band))->load() > 0.5f;
+    const float maxDb = proc.apvts.getRawParameterValue (EQ::gainId (band))->load();
+    const float liveDb = proc.getDynamicGainDb (band);
+
+    if (on && std::abs (maxDb) > 0.05f)
+    {
+        const float frac = juce::jlimit (0.0f, 1.0f, std::abs (liveDb) / std::abs (maxDb));
+        g.setColour (EQ::bandColours[band].withAlpha (0.75f));
+        g.fillRoundedRectangle (r.withWidth (r.getWidth() * frac), 3.0f);
+    }
+
+    g.setColour (juce::Colours::white.withAlpha (on ? 1.0f : 0.4f));
+    g.setFont (11.0f);
+    g.drawText (on ? juce::String (liveDb, 1) + " / " + juce::String (maxDb, 1) + " dB" : juce::String ("apagada"),
+                getLocalBounds(), juce::Justification::centred);
 }
 
 //==============================================================================
@@ -362,6 +396,8 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             dynToggle[b].setColour (juce::ToggleButton::tickColourId, EQ::bandColours[b]);
             dynAttachments[b] = std::make_unique<ButtonAttachment> (proc.apvts, EQ::dynId (b), dynToggle[b]);
             addAndMakeVisible (dynToggle[b]);
+            dynMeter[b] = std::make_unique<DynMeter> (proc, b);
+            addAndMakeVisible (*dynMeter[b]);
             addKnob (thrKnob[b], EQ::thrId (b), "Umbral", 52);
             addKnob (ratioKnob[b], EQ::ratioId (b), "Ratio", 52);
             addKnob (attackKnob[b], EQ::attackId (b), "Ataque", 52);
@@ -381,7 +417,7 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         addAndMakeVisible (l);
     }
 
-    setSize (980, 810);
+    setSize (980, 830);
 }
 
 void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, int textBoxWidth)
@@ -507,7 +543,7 @@ void MedidoresEQAudioProcessorEditor::resized()
             typeButton[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
     }
 
-    auto dynRow = area.removeFromBottom (170);   // botón Dinámica + 4 knobs (umbral, ratio, ataque, release) en 2x2
+    auto dynRow = area.removeFromBottom (190);   // botón Dinámica + medidor + 4 knobs (umbral, ratio, ataque, release) en 2x2
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
     {
@@ -527,10 +563,11 @@ void MedidoresEQAudioProcessorEditor::resized()
 
             const int x = dynRow.getX() + b * colW;
             dynToggle[b].setBounds (x + 6, dynRow.getY() + 2, colW - 6, 24);
-            place (thrKnob[b],     { x,            dynRow.getY() + 28,  colW / 2, 70 });
-            place (ratioKnob[b],   { x + colW / 2, dynRow.getY() + 28,  colW / 2, 70 });
-            place (attackKnob[b],  { x,            dynRow.getY() + 100, colW / 2, 70 });
-            place (releaseKnob[b], { x + colW / 2, dynRow.getY() + 100, colW / 2, 70 });
+            dynMeter[b]->setBounds (x + 8, dynRow.getY() + 28, colW - 16, 16);
+            place (thrKnob[b],     { x,            dynRow.getY() + 48,  colW / 2, 70 });
+            place (ratioKnob[b],   { x + colW / 2, dynRow.getY() + 48,  colW / 2, 70 });
+            place (attackKnob[b],  { x,            dynRow.getY() + 120, colW / 2, 70 });
+            place (releaseKnob[b], { x + colW / 2, dynRow.getY() + 120, colW / 2, 70 });
         }
     }
 

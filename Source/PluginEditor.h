@@ -62,6 +62,19 @@ private:
     float held = -100.0f;
 };
 
+// Barra de una banda dinámica: cuánto de su ganancia máxima se está aplicando ahora mismo.
+class DynMeter : public juce::Component, private juce::Timer
+{
+public:
+    DynMeter (MedidoresEQAudioProcessor& p, int bandIndex) : proc (p), band (bandIndex) { startTimerHz (30); }
+    void paint (juce::Graphics&) override;
+
+private:
+    void timerCallback() override { repaint(); }
+    MedidoresEQAudioProcessor& proc;
+    int band;
+};
+
 class MedidoresEQAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
@@ -113,6 +126,7 @@ private:
 
     // EQ dinámico: botón por banda, con su umbral, ratio, ataque y release.
     juce::ToggleButton dynToggle[EQ::NumBands];
+    std::unique_ptr<DynMeter> dynMeter[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> dynAttachments[EQ::NumBands];
     Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob[EQ::NumBands], releaseKnob[EQ::NumBands];
 

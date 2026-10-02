@@ -241,6 +241,9 @@ public:
     float takeInputPeak (int channel)  { return inPeak[channel & 1].exchange (0.0f); }
     float takeOutputPeak (int channel) { return outPeak[channel & 1].exchange (0.0f); }
 
+    // Ganancia que está aplicando ahora mismo una banda dinámica (dB; 0 si no es dinámica). La lee el editor.
+    float getDynamicGainDb (int band) const { return dynGainDb[band].load(); }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void updateFilters (bool force);
@@ -278,6 +281,7 @@ private:
     double currentRate = 44100.0;
 
     std::atomic<float> inPeak[2] { 0.0f, 0.0f }, outPeak[2] { 0.0f, 0.0f };
+    std::atomic<float> dynGainDb[EQ::NumBands] {};
 
     juce::AbstractFifo analyzerFifo { 16384 };
     std::array<float, 16384> analyzerData {};

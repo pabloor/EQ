@@ -220,6 +220,7 @@ void MedidoresEQAudioProcessor::updateDynamic (juce::AudioBuffer<float>& buffer,
     const float over = juce::Decibels::gainToDecibels (env, -100.0f) - d.threshold;
     const float reduction = over > 0.0f ? juce::jmin (over * (1.0f - 1.0f / d.ratio), std::abs (d.settings.gainDb)) : 0.0f;
     const float gainDb = d.settings.gainDb >= 0.0f ? reduction : -reduction;
+    dynGainDb[b].store (gainDb);
 
     // Escribe los coeficientes en el objeto compartido por los dos canales, sin reservar memoria.
     float c[6];
@@ -235,6 +236,7 @@ void MedidoresEQAudioProcessor::processBand (juce::AudioBuffer<float>& buffer, i
     const int n = buffer.getNumSamples();
     const int where = numCh < 2 ? 0 : EQ::placement (b, apvts);
     const bool dyn = EQ::hasDyn (b) && dynamic[b].on;
+    if (EQ::hasDyn (b) && ! dyn) dynGainDb[b].store (0.0f);
 
     float* l = buffer.getWritePointer (0);
     float* r = numCh > 1 ? buffer.getWritePointer (1) : nullptr;
