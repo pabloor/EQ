@@ -1,0 +1,114 @@
+#include "Presets.h"
+
+namespace
+{
+    using Values = std::vector<std::pair<const char*, float>>;
+    struct Factory { const char* name; Values values; };
+
+    // Los canales son índices: 0 = estéreo, 1 = Mid, 2 = Side. Las pendientes: 0 = 6, 1 = 12, 2 = 24, 3 = 48 dB/oct.
+    const std::vector<Factory>& factory()
+    {
+        static const std::vector<Factory> presets = {
+            { "Plano", {} },
+            { "Voz: limpieza", {
+                { "hp_freq", 90.0f }, { "hp_slope", 2.0f },
+                { "b1_freq", 300.0f }, { "b1_gain", -3.0f }, { "b1_q", 1.2f },
+                { "b2_freq", 3500.0f }, { "b2_gain", 2.5f }, { "b2_q", 0.9f },
+                { "hs_freq", 10000.0f }, { "hs_gain", 2.0f } } },
+            { "Bombo", {
+                { "hp_freq", 30.0f },
+                { "ls_freq", 60.0f }, { "ls_gain", 3.0f },
+                { "b1_freq", 350.0f }, { "b1_gain", -4.0f }, { "b1_q", 1.5f },
+                { "b2_freq", 4000.0f }, { "b2_gain", 3.0f } } },
+            { "Brillo", {
+                { "hs_freq", 9000.0f }, { "hs_gain", 4.0f },
+                { "b2_freq", 5000.0f }, { "b2_gain", 1.5f } } },
+            { "Corte de graves", { { "hp_freq", 120.0f }, { "hp_slope", 3.0f } } },
+            { "Telefono", {
+                { "hp_freq", 400.0f }, { "hp_slope", 2.0f },
+                { "lp_freq", 3400.0f }, { "lp_slope", 2.0f } } },
+            { "Master: más aire (Side)", {
+                { "hs_freq", 8000.0f }, { "hs_gain", 3.0f }, { "hs_ch", 2.0f },
+                { "ls_freq", 150.0f }, { "ls_gain", -2.0f }, { "ls_ch", 2.0f } } },
+            { "Master: presencia (Mid)", {
+                { "b2_freq", 2500.0f }, { "b2_gain", 2.0f }, { "b2_q", 0.8f }, { "b2_ch", 1.0f } } },
+        };
+        return presets;
+    }
+}
+
+juce::File PresetManager::folder()
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("Medidores EQ").getChildFile ("Presets");
+}
+
+juce::File PresetManager::fileFor (const juce::String& name)
+{
+    return folder().getChildFile (juce::File::createLegalFileName (name) + ".xml");
+}
+
+juce::StringArray PresetManager::factoryNames() const
+{
+    juce::StringArray names;
+    for (auto& p : factory()) names.add (p.name);
+    return names;
+}
+
+juce::StringArray PresetManager::userNames() const
+{
+    juce::StringArray names;
+    for (auto& f : folder().findChildFiles (juce::File::findFiles, false, "*.xml"))
+        names.add (f.getFileNameWithoutExtension());
+    names.sort (true);
+    return names;
+}
+
+void PresetManager::setParam (const juce::String& id, float value)
+{
+    if (auto* p = apvts.getParameter (id))
+        p->setValueNotifyingHost (p->convertTo0to1 (value));
+}
+
+void PresetManager::resetToDefaults()
+{
+    for (auto* p : apvts.processor.getParameters())
+        p->setValueNotifyingHost (p->getDefaultValue());
+}
+
+void PresetManager::loadFactory (const juce::String& name)
+{
+    for (auto& p : factory())
+        if (name == p.name)
+        {
+            resetToDefaults();
+            for (auto& v : p.values) setParam (v.first, v.second);
+            return;
+        }
+}
+
+bool PresetManager::loadUser (const juce::String& name)
+{
+    if (auto xml = juce::parseXML (fileFor (name)))
+        if (xml->hasTagName (apvts.state.getType()))
+        {
+            apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            return true;
+        }
+    return false;
+}
+
+bool PresetManager::saveUser (const juce::String& name)
+{
+    if (name.trim().isEmpty()) return false;
+    const auto file = fileFor (name.trim());
+    if (! file.getParentDirectory().createDirectory()) return false;
+    if (auto xml = apvts.copyState().createXml())
+        return xml->writeTo (file);
+    return false;
+}
+
+bool PresetManager::removeUser (const juce::String& name)
+{
+    return fileFor (name).deleteFile();
+}

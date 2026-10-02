@@ -26,7 +26,8 @@ juce_add_plugin(MedidoresEQ
 
 target_sources(MedidoresEQ PRIVATE
     Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp)
+    Source/PluginEditor.cpp
+    Source/Presets.cpp)
 
 target_compile_definitions(MedidoresEQ PUBLIC
     JUCE_WEB_BROWSER=0

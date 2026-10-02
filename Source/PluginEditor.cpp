@@ -27,7 +27,7 @@ float ResponseCurve::dbForY (float y) const
 juce::Point<float> ResponseCurve::nodePos (int b) const
 {
     const float f = proc.apvts.getRawParameterValue (EQ::freqId (b))->load();
-    const float g = b == EQ::HighPass ? 0.0f : proc.apvts.getRawParameterValue (EQ::gainId (b))->load();
+    const float g = EQ::isCut (b) ? 0.0f : proc.apvts.getRawParameterValue (EQ::gainId (b))->load();
     return { xForFreq (f), yForDb (g) };
 }
 
@@ -125,22 +125,50 @@ void ResponseCurve::paint (juce::Graphics& g)
         }
     }
 
-    // Respuesta total = producto de las bandas
-    EQ::Coeffs::Ptr coeffs[EQ::NumBands];
-    for (int b = 0; b < EQ::NumBands; ++b) coeffs[b] = EQ::makeCoeffs (b, proc.apvts, sr);
-
-    juce::Path path;
-    const int w = juce::jmax (2, (int) area.getWidth());
-    for (int i = 0; i < w; ++i)
+    // Respuesta: producto de las bandas estéreo, más las de Mid o Side según el canal.
+    EQ::BandFilter bands[EQ::NumBands];
+    int where[EQ::NumBands];
+    bool anyMidSide = false;
+    for (int b = 0; b < EQ::NumBands; ++b)
     {
-        const double f = 20.0 * std::pow (1000.0, (double) i / (w - 1));
-        double mag = 1.0;
-        for (auto& c : coeffs) mag *= c->getMagnitudeForFrequency (f, sr);
-        const float db = juce::jlimit (minDb, maxDb, juce::Decibels::gainToDecibels ((float) mag, -60.0f));
-        if (i == 0) path.startNewSubPath ((float) i, yForDb (db)); else path.lineTo ((float) i, yForDb (db));
+        bands[b] = EQ::makeBand (b, proc.apvts, sr);
+        where[b] = EQ::placement (b, proc.apvts);
+        if (where[b] != 0 && proc.apvts.getRawParameterValue (EQ::onId (b))->load() > 0.5f) anyMidSide = true;
     }
-    g.setColour (juce::Colour (0xff4fc3f7));
-    g.strokePath (path, juce::PathStrokeType (2.0f));
+
+    auto drawResponse = [&] (int channelMask, juce::Colour colour)
+    {
+        // channelMask: 0 = solo estéreo (L/R), 1 = estéreo + Mid, 2 = estéreo + Side
+        juce::Path path;
+        const int w = juce::jmax (2, (int) area.getWidth());
+        for (int i = 0; i < w; ++i)
+        {
+            const double f = 20.0 * std::pow (1000.0, (double) i / (w - 1));
+            double mag = 1.0;
+            for (int b = 0; b < EQ::NumBands; ++b)
+                if (where[b] == 0 || where[b] == channelMask)
+                    mag *= bands[b].magnitude (f, sr);
+            const float db = juce::jlimit (minDb, maxDb, juce::Decibels::gainToDecibels ((float) mag, -60.0f));
+            if (i == 0) path.startNewSubPath ((float) i, yForDb (db)); else path.lineTo ((float) i, yForDb (db));
+        }
+        g.setColour (colour);
+        g.strokePath (path, juce::PathStrokeType (2.0f));
+    };
+
+    if (anyMidSide)
+    {
+        drawResponse (1, juce::Colour (0xff4fc3f7));   // Mid
+        drawResponse (2, juce::Colour (0xffffb74d));   // Side
+        g.setFont (11.0f);
+        g.setColour (juce::Colour (0xff4fc3f7));
+        g.drawText ("Mid", 8, 6, 40, 14, juce::Justification::left);
+        g.setColour (juce::Colour (0xffffb74d));
+        g.drawText ("Side", 44, 6, 40, 14, juce::Justification::left);
+    }
+    else
+    {
+        drawResponse (0, juce::Colour (0xff4fc3f7));
+    }
 
     // Puntos de banda
     for (int b = 0; b < EQ::NumBands; ++b)
@@ -162,7 +190,9 @@ void ResponseCurve::setParam (const juce::String& id, float v)
 
 void ResponseCurve::gesture (int b, bool begin)
 {
-    for (auto id : { EQ::freqId (b), EQ::gainId (b) })
+    juce::StringArray ids { EQ::freqId (b) };
+    if (! EQ::isCut (b)) ids.add (EQ::gainId (b));
+    for (auto& id : ids)
         if (auto* p = param (id))
         {
             if (begin) p->beginChangeGesture(); else p->endChangeGesture();
@@ -188,7 +218,7 @@ void ResponseCurve::mouseDrag (const juce::MouseEvent& e)
 {
     if (dragged < 0) return;
     setParam (EQ::freqId (dragged), juce::jlimit (20.0f, 20000.0f, freqForX (e.position.x)));
-    if (dragged != EQ::HighPass)
+    if (! EQ::isCut (dragged))
         setParam (EQ::gainId (dragged), juce::jlimit (-18.0f, 18.0f, dbForY (e.position.y)));
 }
 
@@ -213,7 +243,7 @@ void ResponseCurve::mouseDoubleClick (const juce::MouseEvent& e)
 void ResponseCurve::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
     const int b = nodeAt (e.position);
-    if (b < 0) return;
+    if (b < 0 || EQ::isCut (b)) return;   // los pasos alto/bajo no tienen Q: su pendiente se elige abajo
     if (auto* p = param (EQ::qId (b)))
     {
         const float q = proc.apvts.getRawParameterValue (EQ::qId (b))->load() * std::exp (wheel.deltaY);
@@ -224,10 +254,80 @@ void ResponseCurve::mouseWheelMove (const juce::MouseEvent& e, const juce::Mouse
 }
 
 //==============================================================================
-MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAudioProcessor& p)
-    : AudioProcessorEditor (&p), proc (p), curve (p)
+LevelMeter::LevelMeter (MedidoresEQAudioProcessor& p, bool isInput, const juce::String& title)
+    : proc (p), input (isInput), caption (title)
 {
+    startTimerHz (30);
+}
+
+void LevelMeter::timerCallback()
+{
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        const float peak = input ? proc.takeInputPeak (ch) : proc.takeOutputPeak (ch);
+        const float db = juce::Decibels::gainToDecibels (peak, -100.0f);
+        level[ch] = juce::jmax (db, level[ch] - 1.5f);   // caída ~45 dB/s
+        held = juce::jmax (held, db);
+    }
+    repaint();
+}
+
+void LevelMeter::paint (juce::Graphics& g)
+{
+    auto area = getLocalBounds().toFloat();
+    g.setColour (juce::Colour (0xff15181d));
+    g.fillRoundedRectangle (area, 4.0f);
+
+    g.setColour (juce::Colours::white.withAlpha (0.8f));
+    g.setFont (11.0f);
+    g.drawText (caption, getLocalBounds().removeFromTop (16), juce::Justification::centred);
+
+    auto readout = getLocalBounds().removeFromBottom (16);
+    g.setColour (held > -0.1f ? juce::Colours::red : juce::Colours::white.withAlpha (0.8f));
+    g.drawText (held > -99.0f ? juce::String (held, 1) : "--", readout, juce::Justification::centred);
+
+    auto bars = getLocalBounds().reduced (6, 0).withTrimmedTop (20).withTrimmedBottom (20).toFloat();
+    const float barW = (bars.getWidth() - 4.0f) / 2.0f;
+    const float minDb = -60.0f, maxDb = 6.0f;
+
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        auto bar = juce::Rectangle<float> (bars.getX() + (float) ch * (barW + 4.0f), bars.getY(), barW, bars.getHeight());
+        g.setColour (juce::Colours::black.withAlpha (0.4f));
+        g.fillRect (bar);
+
+        const float frac = juce::jlimit (0.0f, 1.0f, (level[ch] - minDb) / (maxDb - minDb));
+        auto fill = bar.withTop (bar.getBottom() - bar.getHeight() * frac);
+        juce::ColourGradient grad (juce::Colour (0xffef5350), bar.getX(), bar.getY(),
+                                   juce::Colour (0xff66bb6a), bar.getX(), bar.getBottom(), false);
+        grad.addColour (0.10, juce::Colour (0xffffee58));    // ~ -0 dB
+        grad.addColour (0.25, juce::Colour (0xff66bb6a));
+        g.setGradientFill (grad);
+        g.fillRect (fill);
+    }
+
+    // Marca de 0 dB
+    const float y0 = bars.getBottom() - bars.getHeight() * (0.0f - minDb) / (maxDb - minDb);
+    g.setColour (juce::Colours::white.withAlpha (0.5f));
+    g.drawHorizontalLine ((int) y0, bars.getX(), bars.getRight());
+}
+
+//==============================================================================
+MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAudioProcessor& p)
+    : AudioProcessorEditor (&p), proc (p), presets (p.apvts), curve (p),
+      inMeter (p, true, "Entrada"), outMeter (p, false, "Salida")
+{
+    addAndMakeVisible (presetBox);
+    addAndMakeVisible (saveButton);
+    addAndMakeVisible (deleteButton);
+    presetBox.onChange = [this] { presetChosen(); };
+    saveButton.onClick = [this] { askPresetName(); };
+    deleteButton.onClick = [this] { askDeletePreset(); };
+    refreshPresets();
+
     addAndMakeVisible (curve);
+    addAndMakeVisible (inMeter);
+    addAndMakeVisible (outMeter);
 
     for (int b = 0; b < EQ::NumBands; ++b)
     {
@@ -237,12 +337,18 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         addAndMakeVisible (toggles[b]);
 
         addKnob (knobs[b][0], EQ::freqId (b), "Frec", " Hz");
-        if (b != EQ::HighPass) addKnob (knobs[b][1], EQ::gainId (b), "Gan", " dB");
-        addKnob (knobs[b][2], EQ::qId (b), "Q", "");
+        if (EQ::isCut (b))
+            addCombo (slopeBox[b], slopeAttachments[b], EQ::slopeId (b), EQ::slopeNames());
+        else
+        {
+            addKnob (knobs[b][1], EQ::gainId (b), "Gan", " dB");
+            addKnob (knobs[b][2], EQ::qId (b), "Q", "");
+        }
+        addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
     }
-    addKnob (outKnob, EQ::outId, "Salida", " dB");
+    addKnob (outKnob, EQ::outId, "Compensación", " dB");
 
-    setSize (680, 540);
+    setSize (900, 660);
 }
 
 void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, const juce::String& suffix)
@@ -256,6 +362,80 @@ void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, 
     addAndMakeVisible (k.label);
 }
 
+void MedidoresEQAudioProcessorEditor::addCombo (juce::ComboBox& box, std::unique_ptr<ComboAttachment>& att,
+                                                const juce::String& id, const juce::StringArray& items)
+{
+    box.addItemList (items, 1);
+    att = std::make_unique<ComboAttachment> (proc.apvts, id, box);
+    addAndMakeVisible (box);
+}
+
+//==============================================================================
+// Desplegable de presets: los ids van de 1 en adelante, primero los de fábrica y luego los de usuario.
+void MedidoresEQAudioProcessorEditor::refreshPresets (const juce::String& select)
+{
+    factoryNames = presets.factoryNames();
+    userNames = presets.userNames();
+
+    presetBox.clear (juce::dontSendNotification);
+    presetBox.addSectionHeading ("Fábrica");
+    for (int i = 0; i < factoryNames.size(); ++i) presetBox.addItem (factoryNames[i], 1 + i);
+    if (userNames.size() > 0)
+    {
+        presetBox.addSeparator();
+        presetBox.addSectionHeading ("Usuario");
+        for (int i = 0; i < userNames.size(); ++i) presetBox.addItem (userNames[i], 1001 + i);
+    }
+    presetBox.setTextWhenNothingSelected ("Presets…");
+
+    const int idx = userNames.indexOf (select);
+    if (idx >= 0) presetBox.setSelectedId (1001 + idx, juce::dontSendNotification);
+    deleteButton.setEnabled (idx >= 0);
+}
+
+void MedidoresEQAudioProcessorEditor::presetChosen()
+{
+    const int id = presetBox.getSelectedId();
+    if (id >= 1001) presets.loadUser (userNames[id - 1001]);
+    else if (id >= 1) presets.loadFactory (factoryNames[id - 1]);
+    deleteButton.setEnabled (id >= 1001);
+}
+
+void MedidoresEQAudioProcessorEditor::askPresetName()
+{
+    auto* w = new juce::AlertWindow ("Guardar preset", "Nombre del preset:", juce::MessageBoxIconType::NoIcon, this);
+    w->addTextEditor ("name", "", "");
+    w->addButton ("Guardar", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addButton ("Cancelar", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    juce::Component::SafePointer<MedidoresEQAudioProcessorEditor> safe (this);
+    w->enterModalState (true, juce::ModalCallbackFunction::create ([safe, w] (int result)
+    {
+        if (result != 1 || safe == nullptr) return;
+        const auto name = w->getTextEditorContents ("name").trim();
+        if (safe->presets.saveUser (name))
+            safe->refreshPresets (name);
+    }), true);
+}
+
+void MedidoresEQAudioProcessorEditor::askDeletePreset()
+{
+    const int id = presetBox.getSelectedId();
+    if (id < 1001) return;
+    const auto name = userNames[id - 1001];
+
+    juce::Component::SafePointer<MedidoresEQAudioProcessorEditor> safe (this);
+    juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Borrar preset",
+                                        "¿Borrar el preset \"" + name + "\"?", "Borrar", "Cancelar", this,
+                                        juce::ModalCallbackFunction::create ([safe, name] (int result)
+    {
+        if (result != 1 || safe == nullptr) return;
+        safe->presets.removeUser (name);
+        safe->refreshPresets();
+    }));
+}
+
+//==============================================================================
 void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colour (0xff22262c));
@@ -264,13 +444,31 @@ void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
 void MedidoresEQAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced (10);
-    curve.setBounds (area.removeFromTop (240));
+
+    auto top = area.removeFromTop (28);
+    presetBox.setBounds (top.removeFromLeft (240));
+    top.removeFromLeft (8);
+    saveButton.setBounds (top.removeFromLeft (80));
+    top.removeFromLeft (6);
+    deleteButton.setBounds (top.removeFromLeft (80));
+    area.removeFromTop (8);
+
+    auto curveRow = area.removeFromTop (240);
+    outMeter.setBounds (curveRow.removeFromRight (56));
+    curveRow.removeFromRight (6);
+    inMeter.setBounds (curveRow.removeFromRight (56));
+    curveRow.removeFromRight (6);
+    curve.setBounds (curveRow);
     area.removeFromTop (8);
 
     const int colW = area.getWidth() / (EQ::NumBands + 1);
     auto toggleRow = area.removeFromTop (26);
     for (int b = 0; b < EQ::NumBands; ++b)
         toggles[b].setBounds (toggleRow.getX() + b * colW + 6, toggleRow.getY(), colW - 6, toggleRow.getHeight());
+
+    auto comboRow = area.removeFromBottom (30);
+    for (int b = 0; b < EQ::NumBands; ++b)
+        placementBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
 
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
@@ -280,9 +478,16 @@ void MedidoresEQAudioProcessorEditor::resized()
     };
 
     for (int b = 0; b < EQ::NumBands; ++b)
-        for (int row = 0; row < 3; ++row)
-            if (! (b == EQ::HighPass && row == 1))
-                place (knobs[b][row], { area.getX() + b * colW, area.getY() + row * rowH, colW, rowH });
+    {
+        place (knobs[b][0], { area.getX() + b * colW, area.getY(), colW, rowH });
+        if (EQ::isCut (b))
+            slopeBox[b].setBounds (area.getX() + b * colW + 8, area.getY() + rowH + rowH / 2 - 12, colW - 16, 24);
+        else
+        {
+            place (knobs[b][1], { area.getX() + b * colW, area.getY() + rowH, colW, rowH });
+            place (knobs[b][2], { area.getX() + b * colW, area.getY() + 2 * rowH, colW, rowH });
+        }
+    }
 
     place (outKnob, { area.getX() + EQ::NumBands * colW, area.getY(), colW, rowH });
 }

@@ -1,8 +1,12 @@
 # Medidores EQ (plugin Audio Unit / VST3)
 
-Ecualizador de 5 bandas hecho con [JUCE](https://juce.com): paso alto, shelf de graves, dos campanas, shelf de agudos y ganancia de salida. Cada banda tiene frecuencia, ganancia, Q y bypass.
+Ecualizador de 6 bandas hecho con [JUCE](https://juce.com): paso alto, shelf de graves, dos campanas, shelf de agudos y paso bajo, con ganancia de compensación de salida (±12 dB).
 
-La ventana muestra la curva de respuesta total sobre un analizador de espectro (post-EQ). Los puntos de banda se arrastran (frecuencia y ganancia), la rueda del ratón sobre un punto cambia su Q y el doble clic lo activa o desactiva.
+- **Pendiente ajustable:** los pasos alto y bajo tienen 6, 12, 24 o 48 dB/octava (Butterworth).
+- **Mid/Side por banda:** cada banda actúa sobre el estéreo, solo sobre el Mid o solo sobre el Side. Si hay bandas en Mid/Side, la curva muestra la respuesta de cada uno.
+- **Curva y analizador:** curva de respuesta total sobre un analizador de espectro (post-EQ). Los puntos de banda se arrastran (frecuencia y ganancia), la rueda del ratón sobre un punto cambia su Q y el doble clic lo activa o desactiva.
+- **Medidores de entrada y salida:** pico por canal, con el máximo en cifras (clic para borrarlo).
+- **Presets:** de fábrica y de usuario (se guardan en `~/Library/Application Support/Medidores EQ/Presets`).
 
 Genera tres formatos: **Audio Unit** (Logic, GarageBand, Ableton, etc.), **VST3** y una app **Standalone** para probar sin DAW.
 
@@ -19,4 +23,4 @@ El workflow `.github/workflows/build-plugin.yml` se lanza solo a mano (Actions �
 
 ## Estado
 
-Primera versión, sin probar aún en un DAW.
+Compila y pasa `auval` y `pluginval` en CI (ver el workflow). Pendiente de probar a oído en un DAW.

@@ -1,5 +1,6 @@
 #pragma once
 #include "PluginProcessor.h"
+#include "Presets.h"
 
 // Curva de respuesta + analizador de espectro. Los puntos de cada banda se arrastran
 // (frecuencia/ganancia), la rueda cambia la Q y el doble clic activa/desactiva la banda.
@@ -43,6 +44,24 @@ private:
     int hovered = -1, dragged = -1;
 };
 
+// Medidor de pico de dos canales (entrada o salida), de -60 a +6 dB, con el pico máximo en cifras.
+class LevelMeter : public juce::Component, private juce::Timer
+{
+public:
+    LevelMeter (MedidoresEQAudioProcessor& p, bool isInput, const juce::String& title);
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override { held = -100.0f; }   // clic: borra el pico máximo
+
+private:
+    void timerCallback() override;
+
+    MedidoresEQAudioProcessor& proc;
+    bool input;
+    juce::String caption;
+    float level[2] { -100.0f, -100.0f };
+    float held = -100.0f;
+};
+
 class MedidoresEQAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
@@ -53,6 +72,7 @@ public:
 private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboAttachment  = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
     struct Knob
     {
@@ -62,12 +82,26 @@ private:
     };
 
     void addKnob (Knob& k, const juce::String& paramId, const juce::String& text, const juce::String& suffix);
+    void addCombo (juce::ComboBox& box, std::unique_ptr<ComboAttachment>& att, const juce::String& paramId, const juce::StringArray& items);
+    void refreshPresets (const juce::String& select = {});
+    void presetChosen();
+    void askPresetName();
+    void askDeletePreset();
 
     MedidoresEQAudioProcessor& proc;
+    PresetManager presets;
+
+    juce::ComboBox presetBox;
+    juce::TextButton saveButton { "Guardar" }, deleteButton { "Borrar" };
+    juce::StringArray factoryNames, userNames;   // los ids del desplegable se reparten entre ambas listas
+
     ResponseCurve curve;
+    LevelMeter inMeter, outMeter;
     juce::ToggleButton toggles[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> toggleAttachments[EQ::NumBands];
     Knob knobs[EQ::NumBands][3];   // [banda][0=frecuencia, 1=ganancia, 2=Q]
+    juce::ComboBox slopeBox[EQ::NumBands], placementBox[EQ::NumBands];
+    std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
     Knob outKnob;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
