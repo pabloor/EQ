@@ -46,7 +46,7 @@ target_sources(EQScreenshot PRIVATE
     Source/PluginEditor.cpp
     Source/Presets.cpp)
 target_include_directories(EQScreenshot PRIVATE Source)
-target_compile_definitions(EQScreenshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_compile_definitions(EQScreenshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1)
 target_link_libraries(EQScreenshot
     PRIVATE juce::juce_audio_utils juce::juce_dsp
     PUBLIC juce::juce_recommended_config_flags)
