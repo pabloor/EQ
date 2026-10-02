@@ -179,6 +179,8 @@ void ResponseCurve::paint (juce::Graphics& g)
         g.setColour (EQ::bandColours[b].withAlpha (on ? 1.0f : 0.5f));
         if (on) g.fillEllipse (p.x - r, p.y - r, 2 * r, 2 * r);
         else    g.drawEllipse (p.x - r, p.y - r, 2 * r, 2 * r, 2.0f);
+        if (EQ::hasDyn (b) && proc.apvts.getRawParameterValue (EQ::dynId (b))->load() > 0.5f)   // anillo = banda dinámica
+            g.drawEllipse (p.x - r - 4, p.y - r - 4, 2 * r + 8, 2 * r + 8, 1.2f);
     }
 }
 
@@ -336,13 +338,13 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         toggleAttachments[b] = std::make_unique<ButtonAttachment> (proc.apvts, EQ::onId (b), toggles[b]);
         addAndMakeVisible (toggles[b]);
 
-        addKnob (knobs[b][0], EQ::freqId (b), "Frec", " Hz");
+        addKnob (knobs[b][0], EQ::freqId (b), "Frec");
         if (EQ::isCut (b))
             addCombo (slopeBox[b], slopeAttachments[b], EQ::slopeId (b), EQ::slopeNames());
         else
         {
-            addKnob (knobs[b][1], EQ::gainId (b), "Gan", " dB");
-            addKnob (knobs[b][2], EQ::qId (b), "Q", "");
+            addKnob (knobs[b][1], EQ::gainId (b), "Gan");
+            addKnob (knobs[b][2], EQ::qId (b), "Q");
         }
         if (EQ::hasType (b))
         {
@@ -353,21 +355,39 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             addAndMakeVisible (typeButton[b]);
         }
         addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
-    }
-    addKnob (inKnob, EQ::inId, "Entrada", " dB");
-    addKnob (outKnob, EQ::outId, "Salida", " dB");
-    addKnob (driveKnob, EQ::driveId, "Drive", " %");
-    addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
-    propQAttachment = std::make_unique<ButtonAttachment> (proc.apvts, EQ::propQId, propQButton);
-    addAndMakeVisible (propQButton);
 
-    setSize (960, 690);
+        if (EQ::hasDyn (b))
+        {
+            dynToggle[b].setButtonText (EQ::utf8 ("Din\u00e1mica"));
+            dynToggle[b].setColour (juce::ToggleButton::tickColourId, EQ::bandColours[b]);
+            dynAttachments[b] = std::make_unique<ButtonAttachment> (proc.apvts, EQ::dynId (b), dynToggle[b]);
+            addAndMakeVisible (dynToggle[b]);
+            addKnob (thrKnob[b], EQ::thrId (b), "Umbral", 52);
+            addKnob (ratioKnob[b], EQ::ratioId (b), "Ratio", 52);
+        }
+    }
+    addKnob (inKnob, EQ::inId, "Entrada");
+    addKnob (outKnob, EQ::outId, "Salida");
+    addKnob (driveKnob, EQ::driveId, "Drive");
+    addKnob (attackKnob, EQ::attackId, "Ataque", 52);
+    addKnob (releaseKnob, EQ::releaseId, "Release", 52);
+    addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
+    addCombo (styleBox, styleAttachment, EQ::styleId, EQ::styleNames());
+    characterLabel.setText (EQ::utf8 ("Car\u00e1cter"), juce::dontSendNotification);
+    styleLabel.setText ("Estilo de curva", juce::dontSendNotification);
+    for (auto* l : { &characterLabel, &styleLabel })
+    {
+        l->setJustificationType (juce::Justification::centred);
+        addAndMakeVisible (l);
+    }
+
+    setSize (980, 770);
 }
 
-void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, const juce::String& suffix)
+void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, int textBoxWidth)
 {
-    k.slider.setTextValueSuffix (suffix);
-    k.slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 18);
+    // El texto del valor (unidades y decimales) lo da el propio parámetro.
+    k.slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, textBoxWidth, 18);
     k.label.setText (text, juce::dontSendNotification);
     k.label.setJustificationType (juce::Justification::centred);
     k.attachment = std::make_unique<SliderAttachment> (proc.apvts, id, k.slider);
@@ -391,7 +411,7 @@ void MedidoresEQAudioProcessorEditor::refreshPresets (const juce::String& select
     userNames = presets.userNames();
 
     presetBox.clear (juce::dontSendNotification);
-    presetBox.addSectionHeading ("Fábrica");
+    presetBox.addSectionHeading (EQ::utf8 ("F\u00e1brica"));
     for (int i = 0; i < factoryNames.size(); ++i) presetBox.addItem (factoryNames[i], 1 + i);
     if (userNames.size() > 0)
     {
@@ -399,7 +419,7 @@ void MedidoresEQAudioProcessorEditor::refreshPresets (const juce::String& select
         presetBox.addSectionHeading ("Usuario");
         for (int i = 0; i < userNames.size(); ++i) presetBox.addItem (userNames[i], 1001 + i);
     }
-    presetBox.setTextWhenNothingSelected ("Presets…");
+    presetBox.setTextWhenNothingSelected (EQ::utf8 ("Presets\u2026"));
 
     const int idx = userNames.indexOf (select);
     if (idx >= 0) presetBox.setSelectedId (1001 + idx, juce::dontSendNotification);
@@ -439,7 +459,7 @@ void MedidoresEQAudioProcessorEditor::askDeletePreset()
 
     juce::Component::SafePointer<MedidoresEQAudioProcessorEditor> safe (this);
     juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Borrar preset",
-                                        "¿Borrar el preset \"" + name + "\"?", "Borrar", "Cancelar", this,
+                                        EQ::utf8 ("\u00bfBorrar el preset \"") + name + "\"?", "Borrar", "Cancelar", this,
                                         juce::ModalCallbackFunction::create ([safe, name] (int result)
     {
         if (result != 1 || safe == nullptr) return;
@@ -487,6 +507,7 @@ void MedidoresEQAudioProcessorEditor::resized()
             typeButton[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
     }
 
+    auto dynRow = area.removeFromBottom (112);   // botón Dinámica + knobs de umbral y ratio
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
     {
@@ -503,6 +524,11 @@ void MedidoresEQAudioProcessorEditor::resized()
         {
             place (knobs[b][1], { area.getX() + b * colW, area.getY() + rowH, colW, rowH });
             place (knobs[b][2], { area.getX() + b * colW, area.getY() + 2 * rowH, colW, rowH });
+
+            const int x = dynRow.getX() + b * colW;
+            dynToggle[b].setBounds (x + 6, dynRow.getY() + 2, colW - 6, 24);
+            place (thrKnob[b],   { x, dynRow.getY() + 28, colW / 2, 84 });
+            place (ratioKnob[b], { x + colW / 2, dynRow.getY() + 28, colW / 2, 84 });
         }
     }
 
@@ -511,6 +537,13 @@ void MedidoresEQAudioProcessorEditor::resized()
     place (inKnob, { gainCol, area.getY(), colW, rowH });
     place (outKnob, { gainCol, area.getY() + rowH, colW, rowH });
     place (driveKnob, { characterCol, area.getY(), colW, rowH });
-    characterBox.setBounds (characterCol + 8, area.getY() + rowH + 6, colW - 16, 24);
-    propQButton.setBounds (characterCol + 8, area.getY() + rowH + 38, colW - 8, 24);
+
+    characterLabel.setBounds (characterCol, area.getY() + rowH, colW, 16);
+    characterBox.setBounds (characterCol + 8, area.getY() + rowH + 18, colW - 16, 24);
+    styleLabel.setBounds (characterCol, area.getY() + rowH + 46, colW, 16);
+    styleBox.setBounds (characterCol + 8, area.getY() + rowH + 64, colW - 16, 24);
+
+    // Ataque y release son globales para todas las bandas dinámicas: van en la fila de dinámica.
+    place (attackKnob,  { gainCol, dynRow.getY() + 28, colW / 2, 84 });
+    place (releaseKnob, { gainCol + colW / 2, dynRow.getY() + 28, colW / 2, 84 });
 }

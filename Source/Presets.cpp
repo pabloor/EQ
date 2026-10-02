@@ -24,12 +24,20 @@ namespace
                 { "hs_freq", 9000.0f }, { "hs_gain", 4.0f },
                 { "b2_freq", 5000.0f }, { "b2_gain", 1.5f } } },
             { "Corte de graves", { { "hp_freq", 120.0f }, { "hp_slope", 3.0f } } },
-            { "Telefono", {
+            { "Tel\u00e9fono", {
                 { "hp_freq", 400.0f }, { "hp_slope", 2.0f },
                 { "lp_freq", 3400.0f }, { "lp_slope", 2.0f } } },
-            { "Master: más aire (Side)", {
+            { "Master: m\u00e1s aire (Side)", {
                 { "hs_freq", 8000.0f }, { "hs_gain", 3.0f }, { "hs_ch", 2.0f },
                 { "ls_freq", 150.0f }, { "ls_gain", -2.0f }, { "ls_ch", 2.0f } } },
+            { "Voz: de-esser din\u00e1mico", {
+                { "hp_freq", 90.0f }, { "hp_slope", 2.0f },
+                { "b2_freq", 6500.0f }, { "b2_gain", -8.0f }, { "b2_q", 3.0f },
+                { "b2_dyn", 1.0f }, { "b2_thr", -32.0f }, { "b2_ratio", 4.0f } } },
+            { "Bajo: graves controlados", {
+                { "hp_freq", 35.0f }, { "hp_slope", 2.0f },
+                { "ls_freq", 90.0f }, { "ls_gain", -6.0f }, { "ls_type", 1.0f }, { "ls_q", 1.2f },
+                { "ls_dyn", 1.0f }, { "ls_thr", -22.0f }, { "ls_ratio", 3.0f } } },
             { "Master: presencia (Mid)", {
                 { "b2_freq", 2500.0f }, { "b2_gain", 2.0f }, { "b2_q", 0.8f }, { "b2_ch", 1.0f } } },
         };
@@ -51,7 +59,7 @@ juce::File PresetManager::fileFor (const juce::String& name)
 juce::StringArray PresetManager::factoryNames() const
 {
     juce::StringArray names;
-    for (auto& p : factory()) names.add (p.name);
+    for (auto& p : factory()) names.add (juce::String::fromUTF8 (p.name));
     return names;
 }
 
@@ -79,7 +87,7 @@ void PresetManager::resetToDefaults()
 void PresetManager::loadFactory (const juce::String& name)
 {
     for (auto& p : factory())
-        if (name == p.name)
+        if (name == juce::String::fromUTF8 (p.name))
         {
             resetToDefaults();
             for (auto& v : p.values) setParam (v.first, v.second);

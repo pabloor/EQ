@@ -14,6 +14,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
     using namespace juce;
     AudioProcessorValueTreeState::ParameterLayout layout;
 
+    // Textos con pocos decimales: Hz sin decimales (kHz con 1-2), dB con 1, Q con 1.
+    auto hzText = [] (float v, int) { return v >= 1000.0f ? String (v / 1000.0f, v >= 10000.0f ? 1 : 2) + " kHz" : String (roundToInt (v)) + " Hz"; };
+    auto hzParse = [] (const String& t) { float v = t.getFloatValue(); return t.containsIgnoreCase ("k") ? v * 1000.0f : v; };
+    auto dbText = [] (float v, int) { return (v > 0.04f ? "+" : "") + String (v, 1) + " dB"; };
+    auto numParse = [] (const String& t) { return t.getFloatValue(); };
+    auto qText = [] (float v, int) { return String (v, 1); };
+    auto pctText = [] (float v, int) { return String (roundToInt (v)) + " %"; };
+    auto ratioText = [] (float v, int) { return String (v, 1) + ":1"; };
+    auto msText = [] (float v, int) { return String (roundToInt (v)) + " ms"; };
+    auto thrText = [] (float v, int) { return String (roundToInt (v)) + " dB"; };
+
     for (int b = 0; b < EQ::NumBands; ++b)
     {
         const auto& info = EQ::bands[b];
@@ -24,8 +35,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
 
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { EQ::freqId (b), 1 }, name + " frecuencia",
-            NormalisableRange<float> (20.0f, 20000.0f, 0.0f, 0.25f), info.freq,
-            AudioParameterFloatAttributes().withLabel ("Hz")));
+            NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.25f), info.freq,
+            AudioParameterFloatAttributes().withLabel ("Hz").withStringFromValueFunction (hzText).withValueFromStringFunction (hzParse)));
 
         if (EQ::isCut (b))
         {
@@ -37,39 +48,61 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
             layout.add (std::make_unique<AudioParameterFloat> (
                 ParameterID { EQ::gainId (b), 1 }, name + " ganancia",
                 NormalisableRange<float> (-18.0f, 18.0f, 0.1f), info.gain,
-                AudioParameterFloatAttributes().withLabel ("dB")));
+                AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (dbText).withValueFromStringFunction (numParse)));
 
             layout.add (std::make_unique<AudioParameterFloat> (
                 ParameterID { EQ::qId (b), 1 }, name + " Q",
-                NormalisableRange<float> (0.1f, 10.0f, 0.01f, 0.5f), info.q));
+                NormalisableRange<float> (0.1f, 10.0f, 0.01f, 0.5f), info.q,
+                AudioParameterFloatAttributes().withStringFromValueFunction (qText).withValueFromStringFunction (numParse)));
 
             if (EQ::hasType (b))
                 layout.add (std::make_unique<AudioParameterBool> (
                     ParameterID { EQ::typeId (b), 1 }, name + " como campana", false));
+
+            // EQ dinámico: la ganancia (hasta el valor del knob de ganancia) solo se aplica cuando el nivel
+            // en la banda supera el umbral.
+            layout.add (std::make_unique<AudioParameterBool> (
+                ParameterID { EQ::dynId (b), 1 }, name + EQ::utf8 (" din\u00e1mica"), false));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { EQ::thrId (b), 1 }, name + " umbral",
+                NormalisableRange<float> (-60.0f, 0.0f, 1.0f), -24.0f,
+                AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (thrText).withValueFromStringFunction (numParse)));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { EQ::ratioId (b), 1 }, name + " ratio",
+                NormalisableRange<float> (1.2f, 10.0f, 0.1f, 0.5f), 3.0f,
+                AudioParameterFloatAttributes().withStringFromValueFunction (ratioText).withValueFromStringFunction (numParse)));
         }
 
         layout.add (std::make_unique<AudioParameterChoice> (
             ParameterID { EQ::chId (b), 1 }, name + " canal", EQ::placementNames(), 0));
     }
 
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { EQ::attackId, 1 }, EQ::utf8 ("Ataque din\u00e1mica"),
+        NormalisableRange<float> (0.5f, 100.0f, 0.5f, 0.5f), 10.0f,
+        AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { EQ::releaseId, 1 }, EQ::utf8 ("Release din\u00e1mica"),
+        NormalisableRange<float> (20.0f, 1000.0f, 1.0f, 0.4f), 150.0f,
+        AudioParameterFloatAttributes().withLabel ("ms").withStringFromValueFunction (msText).withValueFromStringFunction (numParse)));
+
     layout.add (std::make_unique<AudioParameterChoice> (
-        ParameterID { EQ::characterId, 1 }, "Carácter", EQ::characterNames(), 1));
+        ParameterID { EQ::styleId, 1 }, "Estilo de curva", EQ::styleNames(), 1));
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { EQ::characterId, 1 }, EQ::utf8 ("Car\u00e1cter"), EQ::characterNames(), 1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::driveId, 1 }, "Drive",
-        NormalisableRange<float> (0.0f, 100.0f, 0.1f), 0.0f,
-        AudioParameterFloatAttributes().withLabel ("%")));
-    layout.add (std::make_unique<AudioParameterBool> (
-        ParameterID { EQ::propQId, 1 }, "Q proporcional", true));
+        NormalisableRange<float> (0.0f, 100.0f, 1.0f), 0.0f,
+        AudioParameterFloatAttributes().withLabel ("%").withStringFromValueFunction (pctText).withValueFromStringFunction (numParse)));
 
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::inId, 1 }, "Entrada",
         NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
-        AudioParameterFloatAttributes().withLabel ("dB")));
-
+        AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (dbText).withValueFromStringFunction (numParse)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::outId, 1 }, "Salida",
         NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
-        AudioParameterFloatAttributes().withLabel ("dB")));
+        AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (dbText).withValueFromStringFunction (numParse)));
 
     return layout;
 }
@@ -94,6 +127,7 @@ void MedidoresEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     for (auto& band : filters)
         for (auto& stage : band)
             for (auto& f : stage) f.prepare (spec);
+    for (auto& d : dynamic) { d.detector.prepare (spec); d.envelope = 0.0f; }
 
     juce::dsp::ProcessSpec outSpec { sampleRate, (juce::uint32) samplesPerBlock, (juce::uint32) getTotalNumOutputChannels() };
     inGain.prepare (outSpec);
@@ -105,14 +139,16 @@ void MedidoresEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 // Recalcula los coeficientes solo de las bandas cuyos parámetros han cambiado.
 void MedidoresEQAudioProcessor::updateFilters (bool force)
 {
+    auto read = [&] (const juce::String& id) { return apvts.getRawParameterValue (id)->load(); };
+
     for (int b = 0; b < EQ::NumBands; ++b)
     {
-        auto read = [&] (const juce::String& id) { return apvts.getRawParameterValue (id)->load(); };
-        const std::array<float, 6> now {
+        const std::array<float, 8> now {
             read (EQ::onId (b)), read (EQ::freqId (b)),
             EQ::isCut (b) ? read (EQ::slopeId (b)) : read (EQ::gainId (b)),
-            EQ::isCut (b) ? 0.0f : read (EQ::qId (b)), read (EQ::propQId),
-            EQ::hasType (b) ? read (EQ::typeId (b)) : 0.0f };
+            EQ::isCut (b) ? 0.0f : read (EQ::qId (b)), read (EQ::styleId),
+            EQ::hasType (b) ? read (EQ::typeId (b)) : 0.0f,
+            EQ::hasDyn (b) ? read (EQ::dynId (b)) : 0.0f, 0.0f };
 
         if (! force && now == lastParams[b]) continue;
         lastParams[b] = now;
@@ -122,10 +158,76 @@ void MedidoresEQAudioProcessor::updateFilters (bool force)
         for (int s = 0; s < bf.numStages; ++s)
             for (int ch = 0; ch < 2; ++ch)
                 filters[b][s][ch].coefficients = bf.stage[s];
+
+        if (EQ::hasDyn (b))
+        {
+            auto& d = dynamic[b];
+            d.on = now[6] > 0.5f && now[0] > 0.5f;
+            d.settings = EQ::readSettings (b, apvts, currentRate);
+            // Detector: paso de banda en las campanas, paso bajo en el shelf de graves, paso alto en el de agudos.
+            d.detector.coefficients = d.settings.shape == EQ::Peak ? EQ::Coeffs::makeBandPass (currentRate, d.settings.freq, juce::jmax (0.5f, d.settings.q))
+                                    : d.settings.shape == EQ::LowShelfShape ? EQ::Coeffs::makeLowPass (currentRate, d.settings.freq, 0.707f)
+                                                                           : EQ::Coeffs::makeHighPass (currentRate, d.settings.freq, 0.707f);
+        }
     }
 
-    inGain.setGainDecibels (apvts.getRawParameterValue (EQ::inId)->load());
-    outGain.setGainDecibels (apvts.getRawParameterValue (EQ::outId)->load());
+    for (int b = 0; b < EQ::NumBands; ++b)
+        if (EQ::hasDyn (b))
+        {
+            dynamic[b].threshold = read (EQ::thrId (b));
+            dynamic[b].ratio = juce::jmax (1.01f, read (EQ::ratioId (b)));
+        }
+
+    attackCoef  = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::attackId))  * 0.001f * (float) currentRate));
+    releaseCoef = std::exp (-1.0f / (juce::jmax (0.1f, read (EQ::releaseId)) * 0.001f * (float) currentRate));
+
+    inGain.setGainDecibels (read (EQ::inId));
+    outGain.setGainDecibels (read (EQ::outId));
+}
+
+void MedidoresEQAudioProcessor::runFilters (juce::AudioBuffer<float>& buffer, int b, int where, int numCh, int start, int len)
+{
+    juce::dsp::AudioBlock<float> block (buffer);
+    auto run = [&] (int ch)
+    {
+        auto one = block.getSingleChannelBlock ((size_t) ch).getSubBlock ((size_t) start, (size_t) len);
+        juce::dsp::ProcessContextReplacing<float> ctx (one);
+        for (int s = 0; s < numStages[b]; ++s) filters[b][s][ch].process (ctx);
+    };
+
+    if (where == 0) for (int ch = 0; ch < numCh; ++ch) run (ch);
+    else            run (where - 1);   // canal 0 = Mid, canal 1 = Side mientras dura el filtrado
+}
+
+// EQ dinámico: mide el nivel de la señal en la banda y ajusta la ganancia del filtro.
+// Con el nivel por encima del umbral, la ganancia sube (o baja) progresivamente según el ratio,
+// hasta el valor del knob de ganancia; por debajo del umbral la banda queda plana.
+void MedidoresEQAudioProcessor::updateDynamic (juce::AudioBuffer<float>& buffer, int b, int where, int numCh, int start, int len)
+{
+    auto& d = dynamic[b];
+    const float* in0 = buffer.getReadPointer (0);
+    const float* in1 = buffer.getReadPointer (numCh > 1 ? 1 : 0);
+    const float* mono = where == 0 ? nullptr : (where == 1 ? in0 : in1);
+
+    float env = d.envelope;
+    for (int i = start; i < start + len; ++i)
+    {
+        const float x = mono != nullptr ? mono[i] : (numCh > 1 ? 0.5f * (in0[i] + in1[i]) : in0[i]);
+        const float r = std::abs (d.detector.processSample (x));
+        env = r > env ? r + attackCoef * (env - r) : r + releaseCoef * (env - r);
+    }
+    d.envelope = env;
+
+    const float over = juce::Decibels::gainToDecibels (env, -100.0f) - d.threshold;
+    const float reduction = over > 0.0f ? juce::jmin (over * (1.0f - 1.0f / d.ratio), std::abs (d.settings.gainDb)) : 0.0f;
+    const float gainDb = d.settings.gainDb >= 0.0f ? reduction : -reduction;
+
+    // Escribe los coeficientes en el objeto compartido por los dos canales, sin reservar memoria.
+    float c[6];
+    EQ::fillCoeffs (d.settings, gainDb, currentRate, c);
+    auto* raw = filters[b][0][0].coefficients->coefficients.getRawDataPointer();
+    const float inv = 1.0f / c[3];
+    raw[0] = c[0] * inv; raw[1] = c[1] * inv; raw[2] = c[2] * inv; raw[3] = c[4] * inv; raw[4] = c[5] * inv;
 }
 
 void MedidoresEQAudioProcessor::processBand (juce::AudioBuffer<float>& buffer, int b)
@@ -133,35 +235,32 @@ void MedidoresEQAudioProcessor::processBand (juce::AudioBuffer<float>& buffer, i
     const int numCh = juce::jmin (buffer.getNumChannels(), 2);
     const int n = buffer.getNumSamples();
     const int where = numCh < 2 ? 0 : EQ::placement (b, apvts);
+    const bool dyn = EQ::hasDyn (b) && dynamic[b].on;
 
-    auto run = [&] (int ch)
-    {
-        juce::dsp::AudioBlock<float> block (buffer);
-        auto one = block.getSingleChannelBlock ((size_t) ch);
-        juce::dsp::ProcessContextReplacing<float> ctx (one);
-        for (int s = 0; s < numStages[b]; ++s) filters[b][s][ch].process (ctx);
-    };
+    float* l = buffer.getWritePointer (0);
+    float* r = numCh > 1 ? buffer.getWritePointer (1) : nullptr;
 
-    if (where == 0)
+    if (where != 0)   // Mid/Side: canal 0 = Mid, canal 1 = Side
+        for (int i = 0; i < n; ++i)
+        {
+            const float m = 0.5f * (l[i] + r[i]), s = 0.5f * (l[i] - r[i]);
+            l[i] = m; r[i] = s;
+        }
+
+    const int step = dyn ? dynamicBlock : juce::jmax (1, n);
+    for (int start = 0; start < n; start += step)
     {
-        for (int ch = 0; ch < numCh; ++ch) run (ch);
-        return;
+        const int len = juce::jmin (step, n - start);
+        if (dyn) updateDynamic (buffer, b, where, numCh, start, len);
+        runFilters (buffer, b, where, numCh, start, len);
     }
 
-    // Mid/Side: canal 0 = Mid, canal 1 = Side mientras dura el filtrado.
-    auto* l = buffer.getWritePointer (0);
-    auto* r = buffer.getWritePointer (1);
-    for (int i = 0; i < n; ++i)
-    {
-        const float m = 0.5f * (l[i] + r[i]), s = 0.5f * (l[i] - r[i]);
-        l[i] = m; r[i] = s;
-    }
-    run (where - 1);
-    for (int i = 0; i < n; ++i)
-    {
-        const float m = l[i], s = r[i];
-        l[i] = m + s; r[i] = m - s;
-    }
+    if (where != 0)
+        for (int i = 0; i < n; ++i)
+        {
+            const float m = l[i], s = r[i];
+            l[i] = m + s; r[i] = m - s;
+        }
 }
 
 void MedidoresEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)

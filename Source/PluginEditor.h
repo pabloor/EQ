@@ -81,7 +81,7 @@ private:
         std::unique_ptr<SliderAttachment> attachment;
     };
 
-    void addKnob (Knob& k, const juce::String& paramId, const juce::String& text, const juce::String& suffix);
+    void addKnob (Knob& k, const juce::String& paramId, const juce::String& text, int textBoxWidth = 70);
     void addCombo (juce::ComboBox& box, std::unique_ptr<ComboAttachment>& att, const juce::String& paramId, const juce::StringArray& items);
     void refreshPresets (const juce::String& select = {});
     void presetChosen();
@@ -107,8 +107,14 @@ private:
     Knob inKnob, outKnob, driveKnob;
     juce::ComboBox characterBox;
     std::unique_ptr<ComboAttachment> characterAttachment;
-    juce::ToggleButton propQButton { "Q proporcional" };
-    std::unique_ptr<ButtonAttachment> propQAttachment;
+    juce::ComboBox styleBox;
+    std::unique_ptr<ComboAttachment> styleAttachment;
+    juce::Label characterLabel, styleLabel;
+
+    // EQ dinámico: botón por banda, umbral y ratio por banda, y ataque/release globales.
+    juce::ToggleButton dynToggle[EQ::NumBands];
+    std::unique_ptr<ButtonAttachment> dynAttachments[EQ::NumBands];
+    Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob, releaseKnob;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
 };
