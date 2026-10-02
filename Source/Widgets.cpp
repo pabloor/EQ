@@ -106,7 +106,7 @@ void RotarySwitch::paint (juce::Graphics& g)
 
     const juce::Point<float> c (w * 0.5f, h * 0.58f);
     const float r = juce::jmin (w * 0.2f, (h - 16.0f) * 0.2f);
-    const float lx = w * 0.40f, ly = (h - 16.0f) * 0.42f;   // elipse donde van las posiciones impresas
+    const float lx = juce::jmin (w * 0.40f, r * 2.4f), ly = juce::jmin ((h - 16.0f) * 0.42f, r * 2.1f);   // elipse donde van las posiciones impresas
 
     g.setFont (juce::Font (juce::FontOptions (10.0f)));
     for (int i = 0; i < labels.size(); ++i)
@@ -218,7 +218,7 @@ void VUPair::drawFace (juce::Graphics& g, juce::Rectangle<float> r, const juce::
         const auto a = pointAt (db, rad), b = pointAt (db, rad - (major ? 6.0f : 3.5f));
         g.setColour (db >= -3.0f ? P.vuRed : P.vuInk.withAlpha (0.85f));
         g.drawLine (a.x, a.y, b.x, b.y, major ? 1.3f : 0.9f);
-        if (major)
+        if (db == -40.0f || db == -20.0f || db == -10.0f || db == 0.0f)   // solo estos llevan número, para que no se pisen
         {
             const auto t = pointAt (db, rad - 14.0f);
             g.drawText (juce::String ((int) db), juce::Rectangle<float> (t.x - 11.0f, t.y - 5.0f, 22.0f, 10.0f), juce::Justification::centred, false);
@@ -265,14 +265,13 @@ void VUPair::paint (juce::Graphics& g)
     const auto& P = paletteOf (*this);
     auto area = getLocalBounds().toFloat();
 
-    auto readout = area.removeFromBottom (22.0f);
-    area.removeFromBottom (6.0f);
-    const float gap = 8.0f;
-    const float faceH = juce::jmin (112.0f, (area.getHeight() - gap) * 0.5f);
-    auto faces = area.withSizeKeepingCentre (area.getWidth() - 6.0f, faceH * 2.0f + gap);
+    const float gap = 8.0f, readoutH = 22.0f, below = 6.0f;
+    const float faceH = juce::jmin (112.0f, (area.getHeight() - gap - readoutH - below) * 0.5f);
+    auto faces = area.withTrimmedLeft (3.0f).withTrimmedRight (3.0f).withHeight (faceH * 2.0f + gap);
     drawFace (g, faces.removeFromTop (faceH), "L", level[0], ledFrames[0] > 0);
     faces.removeFromTop (gap);
     drawFace (g, faces.removeFromTop (faceH), "R", level[1], ledFrames[1] > 0);
+    const juce::Rectangle<float> readout (area.getX(), area.getY() + faceH * 2.0f + gap + below, area.getWidth(), readoutH);
 
     // Pico máximo en una ventana empotrada
     const auto win = readout.reduced (6.0f, 2.0f);
