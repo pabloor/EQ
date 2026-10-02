@@ -1,0 +1,328 @@
+#include "Widgets.h"
+
+//==============================================================================
+SegmentedButtons::SegmentedButtons (juce::RangedAudioParameter& param, const juce::StringArray& l, juce::Colour c)
+    : labels (l), lamp (c),
+      attachment (param, [this] (float v) { current = juce::jlimit (0, labels.size() - 1, juce::roundToInt (v)); repaint(); })
+{
+    attachment.sendInitialUpdate();
+}
+
+void SegmentedButtons::select (int index)
+{
+    attachment.setValueAsCompleteGesture ((float) juce::jlimit (0, labels.size() - 1, index));
+}
+
+void SegmentedButtons::mouseDown (const juce::MouseEvent& e)
+{
+    const int n = juce::jmax (1, labels.size());
+    select ((int) (e.position.x / ((float) getWidth() / (float) n)));
+}
+
+void SegmentedButtons::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w)
+{
+    if (w.deltaY != 0.0f) select (current + (w.deltaY > 0.0f ? -1 : 1));
+}
+
+void SegmentedButtons::paint (juce::Graphics& g)
+{
+    const auto& P = paletteOf (*this);
+    const int n = juce::jmax (1, labels.size());
+    const float segW = (float) getWidth() / (float) n;
+
+    for (int i = 0; i < n; ++i)
+    {
+        auto r = juce::Rectangle<float> ((float) i * segW, 0.0f, segW, (float) getHeight()).reduced (1.5f, 1.0f);
+        const bool on = i == current;
+
+        g.setColour (juce::Colours::black.withAlpha (0.4f));
+        g.fillRoundedRectangle (r.translated (0.0f, 1.2f), 3.0f);
+        const auto top = on ? P.control.darker (0.35f) : P.control.brighter (0.25f);
+        const auto bottom = on ? P.control.darker (0.15f) : P.control.darker (0.25f);
+        g.setGradientFill (juce::ColourGradient (top, r.getX(), r.getY(), bottom, r.getX(), r.getBottom(), false));
+        g.fillRoundedRectangle (r, 3.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.7f));
+        g.drawRoundedRectangle (r, 3.0f, 1.0f);
+
+        if (on)   // piloto encendido en el borde superior
+        {
+            g.setColour (lamp.withAlpha (0.35f));
+            g.fillRoundedRectangle (r.getX() + 3.0f, r.getY() + 1.5f, r.getWidth() - 6.0f, 4.0f, 2.0f);
+            g.setColour (lamp);
+            g.fillRoundedRectangle (r.getX() + 4.0f, r.getY() + 2.5f, r.getWidth() - 8.0f, 2.0f, 1.0f);
+        }
+        else
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.12f));
+            g.drawLine (r.getX() + 3.0f, r.getY() + 1.5f, r.getRight() - 3.0f, r.getY() + 1.5f, 1.0f);
+        }
+
+        g.setColour (on ? P.ink : P.ink.withAlpha (0.75f));
+        g.setFont (juce::Font (juce::FontOptions (12.0f, on ? juce::Font::bold : juce::Font::plain)));
+        g.drawText (labels[i], r.withTrimmedTop (on ? 3.0f : 1.0f), juce::Justification::centred, true);
+    }
+}
+
+//==============================================================================
+RotarySwitch::RotarySwitch (juce::RangedAudioParameter& param, const juce::String& t, const juce::StringArray& l, juce::Colour c)
+    : title (t), labels (l), cap (c),
+      attachment (param, [this] (float v) { current = juce::jlimit (0, labels.size() - 1, juce::roundToInt (v)); repaint(); })
+{
+    attachment.sendInitialUpdate();
+}
+
+float RotarySwitch::angleFor (int index) const
+{
+    const int n = juce::jmax (2, labels.size());
+    return startAngle + (endAngle - startAngle) * (float) index / (float) (n - 1);
+}
+
+void RotarySwitch::select (int index)
+{
+    attachment.setValueAsCompleteGesture ((float) juce::jlimit (0, labels.size() - 1, index));
+}
+
+void RotarySwitch::setFromPoint (juce::Point<float> p)
+{
+    const auto c = juce::Point<float> ((float) getWidth() * 0.5f, (float) getHeight() * 0.58f);
+    const float angle = juce::jlimit (startAngle, endAngle, std::atan2 (p.x - c.x, -(p.y - c.y)));
+    const int n = juce::jmax (2, labels.size());
+    select (juce::roundToInt ((angle - startAngle) / (endAngle - startAngle) * (float) (n - 1)));
+}
+
+void RotarySwitch::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w)
+{
+    if (w.deltaY != 0.0f) select (current + (w.deltaY > 0.0f ? -1 : 1));
+}
+
+void RotarySwitch::paint (juce::Graphics& g)
+{
+    const auto& P = paletteOf (*this);
+    const float w = (float) getWidth(), h = (float) getHeight();
+
+    g.setColour (P.inkMuted);
+    g.setFont (juce::Font (juce::FontOptions (11.5f)).withExtraKerningFactor (0.08f));
+    g.drawText (title, 0, 0, getWidth(), 16, juce::Justification::centred);
+
+    const juce::Point<float> c (w * 0.5f, h * 0.58f);
+    const float r = juce::jmin (w * 0.2f, (h - 16.0f) * 0.2f);
+    const float lx = w * 0.40f, ly = (h - 16.0f) * 0.42f;   // elipse donde van las posiciones impresas
+
+    g.setFont (juce::Font (juce::FontOptions (10.0f)));
+    for (int i = 0; i < labels.size(); ++i)
+    {
+        const float a = angleFor (i);
+        const juce::Point<float> p (c.x + std::sin (a) * lx, c.y - std::cos (a) * ly);
+        g.setColour (P.ink.withAlpha (i == current ? 1.0f : 0.65f));
+        g.drawText (labels[i], juce::Rectangle<float> (p.x - 22.0f, p.y - 6.0f, 44.0f, 12.0f), juce::Justification::centred, false);
+
+        // marca impresa entre la etiqueta y el knob
+        const float t0 = r + 4.0f, t1 = r + 8.0f;
+        g.setColour (P.ink.withAlpha (0.7f));
+        g.drawLine (c.x + std::sin (a) * t0, c.y - std::cos (a) * t0, c.x + std::sin (a) * t1, c.y - std::cos (a) * t1, 1.4f);
+    }
+
+    // Knob
+    for (int i = 3; i >= 1; --i)
+    {
+        g.setColour (juce::Colours::black.withAlpha (0.16f));
+        g.fillEllipse (c.x - r - (float) i + 1.0f, c.y - r - (float) i + 2.5f, (r + (float) i) * 2.0f, (r + (float) i) * 2.0f);
+    }
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff8d8f90), c.x - r * 0.6f, c.y - r * 0.8f,
+                                             juce::Colour (0xff2d2e30), c.x + r * 0.7f, c.y + r, false));
+    g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.drawEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f, 1.0f);
+
+    const float capR = r * 0.74f;
+    g.setGradientFill (juce::ColourGradient (cap.brighter (0.45f), c.x - capR * 0.5f, c.y - capR * 0.7f,
+                                             cap.darker (0.55f), c.x + capR * 0.6f, c.y + capR * 0.9f, false));
+    g.fillEllipse (c.x - capR, c.y - capR, capR * 2.0f, capR * 2.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.drawEllipse (c.x - capR, c.y - capR, capR * 2.0f, capR * 2.0f, 1.0f);
+
+    // Pico indicador (flecha) que apunta a la posición activa
+    juce::Path pointer;
+    pointer.addTriangle (-3.2f, -capR * 0.3f, 3.2f, -capR * 0.3f, 0.0f, -r - 2.5f);
+    const bool lightCap = cap.getPerceivedBrightness() > 0.55f;
+    g.setColour (lightCap ? juce::Colour (0xff1c1a16) : juce::Colour (0xfff5efe0));
+    g.fillPath (pointer, juce::AffineTransform::rotation (angleFor (current)).translated (c.x, c.y));
+}
+
+//==============================================================================
+VUPair::VUPair (MedidoresEQAudioProcessor& p, bool isInput) : proc (p), input (isInput)
+{
+    setTooltip (juce::String::fromUTF8 ("Medidor VU de aguja (L arriba, R abajo). El piloto rojo avisa de picos de 0 dBFS. Clic: borrar el pico máximo."));
+    startTimerHz (30);
+}
+
+void VUPair::timerCallback()
+{
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        const float peak = input ? proc.takeInputPeak (ch) : proc.takeOutputPeak (ch);
+        level[ch] += (peak - level[ch]) * 0.105f;   // constante de integración ~300 ms, como un VU
+        if (peak >= 0.989f) ledFrames[ch] = 45;
+        else if (ledFrames[ch] > 0) --ledFrames[ch];
+        held = juce::jmax (held, juce::Decibels::gainToDecibels (peak, -100.0f));
+    }
+    repaint();
+}
+
+void VUPair::drawFace (juce::Graphics& g, juce::Rectangle<float> r, const juce::String& tag, float lvl, bool led)
+{
+    const auto& P = paletteOf (*this);
+
+    // Marco y cara retroiluminada
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.fillRoundedRectangle (r.expanded (2.5f).translated (0.0f, 1.5f), 6.0f);
+    g.setColour (P.ear.darker (0.4f));
+    g.fillRoundedRectangle (r.expanded (2.5f), 6.0f);
+    g.setGradientFill (juce::ColourGradient (P.vuFace.brighter (0.12f), r.getCentreX(), r.getBottom(),
+                                             P.vuFace.darker (0.45f), r.getCentreX() - r.getWidth() * 0.9f, r.getY(), true));
+    g.fillRoundedRectangle (r, 4.0f);
+
+    g.saveState();
+    g.reduceClipRegion (r.toNearestInt());
+
+    constexpr float vmin = -40.0f, vmax = 3.0f, span = 0.66f;
+    const float rad = juce::jmin (1.04f * r.getHeight(), (r.getWidth() * 0.5f - 8.0f) / std::sin (span));
+    const juce::Point<float> pivot (r.getCentreX(), r.getY() + 0.30f * r.getHeight() + rad);
+    auto pointAt = [&] (float db, float radius)
+    {
+        const float a = -span + 2.0f * span * (juce::jlimit (vmin - 2.0f, vmax + 2.0f, db) - vmin) / (vmax - vmin);
+        return juce::Point<float> (pivot.x + std::sin (a) * radius, pivot.y - std::cos (a) * radius);
+    };
+
+    // Escala: arco, zona roja, marcas y números
+    juce::Path arc, red;
+    for (float db = vmin; db <= vmax + 0.01f; db += 0.5f)
+    {
+        const auto p = pointAt (db, rad);
+        if (db == vmin) arc.startNewSubPath (p); else arc.lineTo (p);
+    }
+    for (float db = -3.0f; db <= vmax + 0.01f; db += 0.5f)
+    {
+        const auto p = pointAt (db, rad + 1.5f);
+        if (db == -3.0f) red.startNewSubPath (p); else red.lineTo (p);
+    }
+    g.setColour (P.vuInk.withAlpha (0.85f));
+    g.strokePath (arc, juce::PathStrokeType (1.1f));
+    g.setColour (P.vuRed);
+    g.strokePath (red, juce::PathStrokeType (3.0f));
+
+    g.setFont (juce::Font (juce::FontOptions (8.5f, juce::Font::bold)));
+    for (float db : { -40.0f, -35.0f, -30.0f, -25.0f, -20.0f, -15.0f, -10.0f, -5.0f, 0.0f, 3.0f })
+    {
+        const bool major = db == -40.0f || db == -30.0f || db == -20.0f || db == -10.0f || db == 0.0f || db == 3.0f || db == -5.0f;
+        const auto a = pointAt (db, rad), b = pointAt (db, rad - (major ? 6.0f : 3.5f));
+        g.setColour (db >= -3.0f ? P.vuRed : P.vuInk.withAlpha (0.85f));
+        g.drawLine (a.x, a.y, b.x, b.y, major ? 1.3f : 0.9f);
+        if (major)
+        {
+            const auto t = pointAt (db, rad - 14.0f);
+            g.drawText (juce::String ((int) db), juce::Rectangle<float> (t.x - 11.0f, t.y - 5.0f, 22.0f, 10.0f), juce::Justification::centred, false);
+        }
+    }
+
+    // Aguja
+    const float db = juce::Decibels::gainToDecibels (lvl, -80.0f);
+    const auto tip = pointAt (db, rad - 2.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.25f));
+    g.drawLine (pivot.x + 1.5f, pivot.y + 1.5f, tip.x + 1.5f, tip.y + 1.5f, 1.6f);
+    g.setColour (P.vuInk.darker (0.4f));
+    g.drawLine (pivot.x, pivot.y, tip.x, tip.y, 1.5f);
+    if (pivot.y < r.getBottom() + 4.0f)   // cubo del eje si queda dentro de la cara
+    {
+        g.setColour (P.vuInk.darker (0.2f));
+        g.fillEllipse (pivot.x - 4.0f, pivot.y - 4.0f, 8.0f, 8.0f);
+    }
+
+    // Cristal: reflejo en la mitad superior
+    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.30f), r.getX(), r.getY(),
+                                             juce::Colours::white.withAlpha (0.0f), r.getX() + r.getWidth() * 0.5f, r.getY() + r.getHeight() * 0.6f, false));
+    g.fillRect (r.withHeight (r.getHeight() * 0.6f));
+    g.setColour (juce::Colours::black.withAlpha (0.35f));   // sombra del borde superior
+    g.fillRect (r.withHeight (2.5f));
+    g.restoreState();
+
+    // Etiqueta de canal y piloto de pico
+    g.setColour (P.vuInk.withAlpha (0.85f));
+    g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
+    g.drawText (tag, juce::Rectangle<float> (r.getX() + 5.0f, r.getY() + 3.0f, 16.0f, 12.0f), juce::Justification::centredLeft, false);
+
+    const juce::Point<float> lamp (r.getRight() - 9.0f, r.getY() + 9.0f);
+    if (led) { g.setColour (P.vuRed.withAlpha (0.35f)); g.fillEllipse (lamp.x - 6.0f, lamp.y - 6.0f, 12.0f, 12.0f); }
+    g.setGradientFill (juce::ColourGradient (led ? juce::Colour (0xffff7a66) : juce::Colour (0xff4a2a24), lamp.x - 1.0f, lamp.y - 1.5f,
+                                             led ? P.vuRed.darker (0.3f) : juce::Colour (0xff25130f), lamp.x + 2.0f, lamp.y + 2.5f, true));
+    g.fillEllipse (lamp.x - 3.5f, lamp.y - 3.5f, 7.0f, 7.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.drawEllipse (lamp.x - 3.5f, lamp.y - 3.5f, 7.0f, 7.0f, 0.8f);
+}
+
+void VUPair::paint (juce::Graphics& g)
+{
+    const auto& P = paletteOf (*this);
+    auto area = getLocalBounds().toFloat();
+
+    auto readout = area.removeFromBottom (22.0f);
+    area.removeFromBottom (6.0f);
+    const float gap = 8.0f;
+    const float faceH = juce::jmin (112.0f, (area.getHeight() - gap) * 0.5f);
+    auto faces = area.withSizeKeepingCentre (area.getWidth() - 6.0f, faceH * 2.0f + gap);
+    drawFace (g, faces.removeFromTop (faceH), "L", level[0], ledFrames[0] > 0);
+    faces.removeFromTop (gap);
+    drawFace (g, faces.removeFromTop (faceH), "R", level[1], ledFrames[1] > 0);
+
+    // Pico máximo en una ventana empotrada
+    const auto win = readout.reduced (6.0f, 2.0f);
+    g.setColour (P.inset);
+    g.fillRoundedRectangle (win, 3.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.7f));
+    g.drawRoundedRectangle (win, 3.0f, 1.0f);
+    g.setColour (held > -0.1f ? P.vuRed.brighter (0.4f) : P.insetText);
+    g.setFont (juce::Font (juce::FontOptions (12.0f)));
+    g.drawText (held > -99.0f ? juce::String (held, 1) + " dB" : juce::String ("--"), win, juce::Justification::centred);
+}
+
+//==============================================================================
+juce::Image makePlate (int width, int height, const Palette& p)
+{
+    const int w = juce::jmax (1, width), h = juce::jmax (1, height);
+    juce::Image img (juce::Image::RGB, w, h, false);
+    juce::Image::BitmapData bd (img, juce::Image::BitmapData::writeOnly);
+    juce::Random rng (7);
+    const float cx = 0.5f * (float) w, cy = 0.5f * (float) h;
+
+    for (int y = 0; y < h; ++y)
+    {
+        const auto base = p.plateTop.interpolatedWith (p.plateBottom, (float) y / (float) juce::jmax (1, h - 1));
+        const float streak = (rng.nextFloat() - 0.5f) * p.grain * 0.9f;   // vetas horizontales del cepillado
+        const float dy = ((float) y - cy) / cy;
+        for (int x = 0; x < w; ++x)
+        {
+            const float dx = ((float) x - cx) / cx;
+            const float vignette = 1.0f - 0.16f * juce::jlimit (0.0f, 1.0f, (dx * dx + dy * dy) * 0.5f);
+            const float n = (1.0f + streak + (rng.nextFloat() - 0.5f) * p.grain) * vignette;
+            bd.setPixelColour (x, y, juce::Colour::fromFloatRGBA (juce::jlimit (0.0f, 1.0f, base.getFloatRed() * n),
+                                                                  juce::jlimit (0.0f, 1.0f, base.getFloatGreen() * n),
+                                                                  juce::jlimit (0.0f, 1.0f, base.getFloatBlue() * n), 1.0f));
+        }
+    }
+    return img;
+}
+
+void drawScrew (juce::Graphics& g, juce::Point<float> c, float r, float slotAngle)
+{
+    g.setColour (juce::Colours::black.withAlpha (0.45f));
+    g.fillEllipse (c.x - r + 0.5f, c.y - r + 1.5f, r * 2.0f, r * 2.0f);
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd2d2cf), c.x - r * 0.5f, c.y - r * 0.6f,
+                                             juce::Colour (0xff55565a), c.x + r * 0.7f, c.y + r * 0.8f, false));
+    g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.7f));
+    g.drawEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f, 0.9f);
+
+    const float dx = std::cos (slotAngle) * r * 0.75f, dy = std::sin (slotAngle) * r * 0.75f;
+    g.setColour (juce::Colours::black.withAlpha (0.75f));
+    g.drawLine (c.x - dx, c.y - dy, c.x + dx, c.y + dy, juce::jmax (1.2f, r * 0.28f));
+}

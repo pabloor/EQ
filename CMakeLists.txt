@@ -27,6 +27,7 @@ juce_add_plugin(MedidoresEQ
 target_sources(MedidoresEQ PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/Widgets.cpp
     Source/Presets.cpp)
 
 target_compile_definitions(MedidoresEQ PUBLIC
@@ -44,6 +45,7 @@ target_sources(EQScreenshot PRIVATE
     Tools/Screenshot.cpp
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/Widgets.cpp
     Source/Presets.cpp)
 target_include_directories(EQScreenshot PRIVATE Source)
 target_compile_definitions(EQScreenshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1)
@@ -57,6 +59,7 @@ target_sources(EQLatencyTest PRIVATE
     Tools/LatencyTest.cpp
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/Widgets.cpp
     Source/Presets.cpp)
 target_include_directories(EQLatencyTest PRIVATE Source)
 target_compile_definitions(EQLatencyTest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)

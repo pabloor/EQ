@@ -2,6 +2,7 @@
 #include "PluginProcessor.h"
 #include "Presets.h"
 #include "LookAndFeel.h"
+#include "Widgets.h"
 
 // Curva de respuesta + analizador de espectro.
 //  - Arrastrar un punto: frecuencia y ganancia. Rueda sobre un punto: Q. Doble clic: activa/desactiva la banda.
@@ -54,25 +55,6 @@ private:
     int hovered = -1, dragged = -1, focusBand = -1, dragHandle = 0;
 };
 
-// Medidor de pico de dos canales (entrada o salida), de -60 a +6 dB, con escala, retención de pico y máximo en cifras.
-class LevelMeter : public juce::Component, public juce::SettableTooltipClient, private juce::Timer
-{
-public:
-    LevelMeter (MedidoresEQAudioProcessor& p, bool isInput, const juce::String& title);
-    void paint (juce::Graphics&) override;
-    void mouseDown (const juce::MouseEvent&) override { held = -100.0f; hold[0] = hold[1] = -100.0f; }   // clic: borra los picos
-
-private:
-    void timerCallback() override;
-
-    MedidoresEQAudioProcessor& proc;
-    bool input;
-    juce::String caption;
-    float level[2] { -100.0f, -100.0f }, hold[2] { -100.0f, -100.0f };
-    int holdFrames[2] { 0, 0 };
-    float held = -100.0f;
-};
-
 // Respuesta de un filtro paso alto/bajo: curva en dB (de -48 a +6) sobre el eje de frecuencias, con la frecuencia de corte marcada.
 class FilterGraph : public juce::Component, private juce::Timer
 {
@@ -109,6 +91,7 @@ public:
 
     ResponseCurve& getCurve() { return curve; }
     void setDynamicsOpen (bool open);   // despliega o recoge los ajustes de dinámica (cambia el tamaño de la ventana)
+    void setTheme (int index);          // cambia el tema visual (también lo hace el desplegable)
     static int windowHeight (bool dynamicsOpen);
 
 private:
@@ -116,15 +99,20 @@ private:
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     using ComboAttachment  = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
+    // capIndex: banda cuyo color lleva el capuchón; kAccent = color de resalte del tema; kWarm = tono cálido de la saturación.
+    static constexpr int kAccent = -1, kWarm = -2;
     struct Knob
     {
         juce::Slider slider { juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::TextBoxBelow };
         juce::Label label;
         std::unique_ptr<SliderAttachment> attachment;
+        int capIndex = kAccent;
     };
 
-    void addKnob (Knob& k, const juce::String& paramId, const juce::String& text, int textBoxWidth, juce::Colour colour, const juce::String& tip);
+    void addKnob (Knob& k, const juce::String& paramId, const juce::String& text, int textBoxWidth, int capIndex, const juce::String& tip);
     void addCombo (juce::ComboBox& box, std::unique_ptr<ComboAttachment>& att, const juce::String& paramId, const juce::StringArray& items);
+    void styleKnob (Knob& k);
+    void applyBandColours();
     void refreshPresets (const juce::String& select = {});
     void presetChosen();
     void askPresetName();
@@ -140,38 +128,36 @@ private:
     juce::StringArray factoryNames, userNames;   // los ids del desplegable se reparten entre ambas listas
 
     // Ajustes de la vista
-    juce::ComboBox analyzerBox, speedBox, rangeBox;
-    juce::Label analyzerLabel, speedLabel, rangeLabel;
-    std::unique_ptr<ComboAttachment> analyzerAttachment, speedAttachment, rangeAttachment;
+    juce::ComboBox analyzerBox, speedBox, rangeBox, themeBox;
+    std::unique_ptr<ComboAttachment> analyzerAttachment, speedAttachment, rangeAttachment, themeAttachment;
 
     ResponseCurve curve;
-    LevelMeter inMeter, outMeter;
+    VUPair inVU, outVU;
     juce::ToggleButton toggles[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> toggleAttachments[EQ::NumBands];
     Knob knobs[EQ::NumBands][3];   // [banda][0=frecuencia, 1=ganancia, 2=Q]
-    juce::ComboBox slopeBox[EQ::NumBands], placementBox[EQ::NumBands];
+    std::unique_ptr<SegmentedButtons> slopeButtons[EQ::NumBands];       // pendiente (solo filtros de corte)
+    std::unique_ptr<SegmentedButtons> placementButtons[EQ::NumBands];   // Estéreo | Mid | Side (solo campanas y shelves)
     juce::TextButton typeButton[EQ::NumBands];   // shelf -> campana (solo en los shelves)
-    std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> typeAttachments[EQ::NumBands];
     Knob inKnob, outKnob, driveKnob, mixKnob;
-    juce::ComboBox characterBox;
-    std::unique_ptr<ComboAttachment> characterAttachment;
-    juce::ComboBox styleBox;
-    std::unique_ptr<ComboAttachment> styleAttachment;
-    juce::Label characterLabel, styleLabel;
+    std::unique_ptr<RotarySwitch> characterSwitch, styleSwitch;
     juce::TextButton dynExpandButton;
     bool dynOpen = false;
 
-    // EQ dinámico: botón por banda, con su medidor, umbral, ratio, ataque y release.
+    // EQ dinámico: palanca por banda, con su medidor, umbral, ratio, ataque y release.
     juce::ToggleButton dynToggle[EQ::NumBands];
     std::unique_ptr<DynMeter> dynMeter[EQ::NumBands];
     std::unique_ptr<FilterGraph> filterGraph[EQ::NumBands];   // solo en los filtros de corte
     std::unique_ptr<ButtonAttachment> dynAttachments[EQ::NumBands];
     Knob thrKnob[EQ::NumBands], ratioKnob[EQ::NumBands], attackKnob[EQ::NumBands], releaseKnob[EQ::NumBands];
 
-    // Paneles de fondo (se calculan en resized y se dibujan en paint)
-    juce::Rectangle<int> bandPanel[EQ::NumBands], characterPanel, inPanel, outPanel;
-    int panelTitleY = 0, filterSplitY = 0;
+    // Geometría de la placa (se calcula en resized y se dibuja en paint)
+    struct Section { juce::Rectangle<int> bounds; juce::String title; };
+    std::vector<Section> sections;
+    juce::Rectangle<int> bezelRect, stripRect;
+    int filterSplitY = 0, sectionTitleY = 0;
+    juce::Image plate;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
 };

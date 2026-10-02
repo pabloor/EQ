@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
       screenshot:
-        description: 'Generar una captura de la interfaz y guardarla en docs/screenshot.png'
+        description: 'Generar capturas de la interfaz (una por tema) y guardarlas en docs/'
         type: boolean
         default: false
 permissions:
@@ -48,7 +48,7 @@ jobs:
           cmake --build build --config Release --parallel --target EQScreenshot
           BIN=$(find build -type f -name EQScreenshot | head -1)
           mkdir -p docs
-          "$BIN" docs/screenshot.png
+          "$BIN" docs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/*

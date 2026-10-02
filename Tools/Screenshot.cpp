@@ -11,7 +11,7 @@ static void setParam (MedidoresEQAudioProcessor& p, const juce::String& id, floa
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI gui;
-    const auto outFile = juce::File::getCurrentWorkingDirectory().getChildFile (argc > 1 ? argv[1] : "screenshot.png");
+    const auto outDir = juce::File::getCurrentWorkingDirectory().getChildFile (argc > 1 ? argv[1] : ".");
 
     MedidoresEQAudioProcessor proc;
     proc.setRateAndBufferSizeDetails (48000.0, 512);
@@ -67,13 +67,21 @@ int main (int argc, char** argv)
         return png.writeImageToStream (image, stream);
     };
 
-    // 1) ajustes de dinámica desplegados; 2) ventana compacta
-    bool ok = save (editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f), outFile);
-
-    e->setDynamicsOpen (false);
-    juce::MessageManager::getInstance()->runDispatchLoopUntil (80);
-    ok = save (editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f),
-               outFile.getParentDirectory().getChildFile (outFile.getFileNameWithoutExtension() + "-compacto.png")) && ok;
+    // Una captura por tema: con los ajustes de dinámica desplegados y con la ventana compacta
+    const char* themeFiles[] = { "oliva", "neve", "grafito" };
+    bool ok = true;
+    for (int t = 0; t < Themes::count; ++t)
+    {
+        setParam (proc, "view_theme", (float) t);
+        e->setTheme (t);
+        for (bool open : { true, false })
+        {
+            e->setDynamicsOpen (open);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (120);
+            ok = save (editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f),
+                       outDir.getChildFile (juce::String (themeFiles[t]) + (open ? "-desplegada.png" : "-compacta.png"))) && ok;
+        }
+    }
 
     return ok ? 0 : 2;
 }
