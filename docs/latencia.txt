@@ -1,8 +1,8 @@
-limpio                 latencia informada = 4, medida = 4  OK
-cinta, drive 0         latencia informada = 4, medida = 4  OK
-cinta, drive 60        latencia informada = 4, medida = 5  OK
-valvula, drive 60      latencia informada = 4, medida = 5  OK
-cinta, mezcla 50       latencia informada = 4, medida = 4  OK
-valvula, mezcla 30     latencia informada = 4, medida = 4  OK
-valvula, mezcla 0      latencia informada = 4, medida = 4  OK
-Latencia coherente en todos los casos (latencia informada: 4 muestras = 0.083 ms a 48 kHz)
+limpio                 latencia informada = 31, medida = 31  OK
+cinta, drive 0         latencia informada = 31, medida = 31  OK
+cinta, drive 60        latencia informada = 31, medida = 31  OK
+valvula, drive 60      latencia informada = 31, medida = 31  OK
+cinta, mezcla 50       latencia informada = 31, medida = 31  OK
+valvula, mezcla 30     latencia informada = 31, medida = 31  OK
+valvula, mezcla 0      latencia informada = 31, medida = 31  OK
+Latencia coherente en todos los casos (latencia informada: 31 muestras = 0.646 ms a 48 kHz)
