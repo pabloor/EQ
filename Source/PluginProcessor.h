@@ -283,9 +283,11 @@ private:
     juce::dsp::Gain<float> inGain, outGain;
 
     // Saturación analógica (cinta/válvula) con sobremuestreo 2x.
-    juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };
+    juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, true };   // latencia entera
     int maxBlockSize = 512;
-    juce::AudioBuffer<float> dryBuffer;   // señal sin saturar, para la mezcla en paralelo
+    juce::AudioBuffer<float> dryBuffer;   // señal sin saturar y retardada la latencia del saturador (mezcla en paralelo)
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> dryDelay { 128 };
+    float latencyDelay = 0.0f;
     float lastAmount = 0.0f;
     bool satWasActive = false;
     float dcX[2] {}, dcY[2] {};

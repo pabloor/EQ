@@ -50,3 +50,16 @@ target_compile_definitions(EQScreenshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL
 target_link_libraries(EQScreenshot
     PRIVATE juce::juce_audio_utils juce::juce_dsp
     PUBLIC juce::juce_recommended_config_flags)
+
+# Prueba de latencia: mide con un impulso que la latencia informada es la real (se ejecuta en CI).
+juce_add_console_app(EQLatencyTest PRODUCT_NAME "EQLatencyTest")
+target_sources(EQLatencyTest PRIVATE
+    Tools/LatencyTest.cpp
+    Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp
+    Source/Presets.cpp)
+target_include_directories(EQLatencyTest PRIVATE Source)
+target_compile_definitions(EQLatencyTest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(EQLatencyTest
+    PRIVATE juce::juce_audio_utils juce::juce_dsp
+    PUBLIC juce::juce_recommended_config_flags)

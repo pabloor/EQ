@@ -132,6 +132,14 @@ void MedidoresEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     maxBlockSize = juce::jmax (1, samplesPerBlock);
     oversampler.initProcessing ((size_t) maxBlockSize);
     dryBuffer.setSize (2, maxBlockSize);
+
+    // Latencia fija del plugin: la del sobremuestreo (entera). El EQ es de fase mínima y no añade latencia.
+    const int latency = juce::roundToInt (oversampler.getLatencyInSamples());
+    latencyDelay = (float) latency;
+    setLatencySamples (latency);
+    dryDelay.prepare ({ sampleRate, (juce::uint32) samplesPerBlock, 2 });
+    dryDelay.setDelay (latencyDelay);
+    dryDelay.reset();
     satWasActive = false;
     lastAmount = 0.0f;
     updateFilters (true);   // antes de preparar: así cada filtro ya tiene coeficientes de orden 2
@@ -320,6 +328,10 @@ void MedidoresEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
 //  Válvula: tanh(a·x + b) con polarización b, asimétrica: añade armónicos pares (más calidez).
 // Ambas tienden a la identidad cuando el Drive tiende a 0 y llevan una compensación parcial de volumen.
 // Se calcula a 2x de la frecuencia de muestreo para que los armónicos no se plieguen.
+//
+// Latencia: el sobremuestreo retrasa la señal (número entero de muestras, que se informa al host). Para que la latencia sea
+// SIEMPRE la misma, también con la saturación apagada o con la mezcla en paralelo, la señal seca pasa por una línea de retardo
+// del mismo tamaño: así seco y saturado están alineados y no hay efecto peine.
 void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
 {
     const int character = (int) apvts.getRawParameterValue (EQ::characterId)->load();
@@ -328,21 +340,15 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
     const float mix = apvts.getRawParameterValue (EQ::mixId)->load() / 100.0f;   // 1 = todo saturado, 0 = todo seco
 
     const bool active = character != 0 && amount > 1e-3f && mix > 1e-3f;
-    if (! active)
-    {
-        satWasActive = false;
-        lastAmount = amount;
-        return;
-    }
-
     const int numCh = juce::jmin (buffer.getNumChannels(), 2);
-    if (! satWasActive)
+
+    if (active && ! satWasActive)
     {
         oversampler.reset();
         for (int ch = 0; ch < 2; ++ch) dcX[ch] = dcY[ch] = 0.0f;
         lastAmount = amount;
-        satWasActive = true;
     }
+    satWasActive = active;
 
     const float bias = 0.3f;
     const float tanhBias = std::tanh (bias);
@@ -357,11 +363,25 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
         const int len = juce::jmin (maxBlockSize, buffer.getNumSamples() - start);
         auto sub = channels.getSubBlock ((size_t) start, (size_t) len);
 
-        // Mezcla en paralelo: se guarda la señal seca antes de saturar.
-        const bool blend = mix < 0.999f;
-        if (blend)
+        // Señal seca retardada la misma latencia que la saturada (se hace siempre para que la línea esté al día).
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            auto* d = sub.getChannelPointer ((size_t) ch);
+            auto* dry = dryBuffer.getWritePointer (ch);
+            for (int i = 0; i < len; ++i)
+            {
+                dryDelay.pushSample (ch, d[i]);
+                dry[i] = dryDelay.popSample (ch, latencyDelay);
+            }
+        }
+
+        if (! active)
+        {
             for (int ch = 0; ch < numCh; ++ch)
-                dryBuffer.copyFrom (ch, 0, sub.getChannelPointer ((size_t) ch), len);
+                std::copy_n (dryBuffer.getReadPointer (ch), len, sub.getChannelPointer ((size_t) ch));
+            lastAmount = amount;
+            continue;
+        }
 
         // Cantidad interpolada dentro del bloque para evitar saltos al mover el Drive.
         const float a0 = lastAmount, a1 = amount;
@@ -395,7 +415,7 @@ void MedidoresEQAudioProcessor::saturate (juce::AudioBuffer<float>& buffer)
                 }
             }
 
-        if (blend)
+        if (mix < 0.999f)   // saturación en paralelo
             for (int ch = 0; ch < numCh; ++ch)
             {
                 auto* d = sub.getChannelPointer ((size_t) ch);

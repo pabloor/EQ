@@ -36,6 +36,10 @@ jobs:
           -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
       - name: Compilar (solo AU y VST3)
         run: cmake --build build --config Release --parallel --target MedidoresEQ_AU MedidoresEQ_VST3
+      - name: Prueba de latencia
+        run: |
+          cmake --build build --config Release --parallel --target EQLatencyTest
+          "$(find build -type f -name EQLatencyTest | head -1)"
       - name: Captura de la interfaz
         if: ${{ inputs.screenshot }}
         run: |
