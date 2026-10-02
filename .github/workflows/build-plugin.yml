@@ -39,6 +39,7 @@ jobs:
       - name: Prueba de latencia
         run: |
           cmake --build build --config Release --parallel --target EQLatencyTest
+          set -o pipefail   # que el fallo de la prueba no lo oculte tee
           mkdir -p docs
           "$(find build -type f -name EQLatencyTest | head -1)" | tee docs/latencia.txt
       - name: Captura de la interfaz
