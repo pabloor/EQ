@@ -42,6 +42,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
             layout.add (std::make_unique<AudioParameterFloat> (
                 ParameterID { EQ::qId (b), 1 }, name + " Q",
                 NormalisableRange<float> (0.1f, 10.0f, 0.01f, 0.5f), info.q));
+
+            if (EQ::hasType (b))
+                layout.add (std::make_unique<AudioParameterChoice> (
+                    ParameterID { EQ::typeId (b), 1 }, name + " tipo", EQ::typeNames(), 0));
         }
 
         layout.add (std::make_unique<AudioParameterChoice> (
@@ -100,7 +104,8 @@ void MedidoresEQAudioProcessor::updateFilters (bool force)
         const std::array<float, 6> now {
             read (EQ::onId (b)), read (EQ::freqId (b)),
             EQ::isCut (b) ? read (EQ::slopeId (b)) : read (EQ::gainId (b)),
-            EQ::isCut (b) ? 0.0f : read (EQ::qId (b)), read (EQ::propQId), 0.0f };
+            EQ::isCut (b) ? 0.0f : read (EQ::qId (b)), read (EQ::propQId),
+            EQ::hasType (b) ? read (EQ::typeId (b)) : 0.0f };
 
         if (! force && now == lastParams[b]) continue;
         lastParams[b] = now;

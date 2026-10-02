@@ -344,6 +344,8 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
             addKnob (knobs[b][1], EQ::gainId (b), "Gan", " dB");
             addKnob (knobs[b][2], EQ::qId (b), "Q", "");
         }
+        if (EQ::hasType (b))
+            addCombo (typeBox[b], typeAttachments[b], EQ::typeId (b), EQ::typeNames());
         addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
     }
     addKnob (outKnob, EQ::outId, "Compensación", " dB");
@@ -352,7 +354,7 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
     propQAttachment = std::make_unique<ButtonAttachment> (proc.apvts, EQ::propQId, propQButton);
     addAndMakeVisible (propQButton);
 
-    setSize (900, 660);
+    setSize (900, 690);
 }
 
 void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, const juce::String& suffix)
@@ -470,9 +472,13 @@ void MedidoresEQAudioProcessorEditor::resized()
     for (int b = 0; b < EQ::NumBands; ++b)
         toggles[b].setBounds (toggleRow.getX() + b * colW + 6, toggleRow.getY(), colW - 6, toggleRow.getHeight());
 
-    auto comboRow = area.removeFromBottom (30);
+    auto comboRow = area.removeFromBottom (58);
     for (int b = 0; b < EQ::NumBands; ++b)
-        placementBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
+    {
+        placementBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 32, colW - 16, 24);
+        if (EQ::hasType (b))
+            typeBox[b].setBounds (comboRow.getX() + b * colW + 8, comboRow.getY() + 4, colW - 16, 24);
+    }
 
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)

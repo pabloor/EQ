@@ -29,6 +29,9 @@ namespace EQ
     inline juce::String onId    (int b) { return juce::String (bands[b].id) + "_on"; }
     inline juce::String slopeId (int b) { return juce::String (bands[b].id) + "_slope"; }
     inline juce::String chId    (int b) { return juce::String (bands[b].id) + "_ch"; }
+    inline juce::String typeId  (int b) { return juce::String (bands[b].id) + "_type"; }
+    inline bool hasType (int b) { return b == LowShelf || b == HighShelf; }   // shelf o campana
+    inline juce::StringArray typeNames() { return { "Shelf", "Campana" }; }
     inline const char* outId = "out_gain";
     inline const char* driveId = "drive";
     inline const char* characterId = "character";
@@ -101,17 +104,17 @@ namespace EQ
 
         const float g = apvts.getRawParameterValue (gainId (b))->load();
         float q = apvts.getRawParameterValue (qId (b))->load();
+        // Los shelves pueden conmutarse a campana.
+        const bool bell = b == Bell1 || b == Bell2
+                          || (hasType (b) && apvts.getRawParameterValue (typeId (b))->load() > 0.5f);
         // Q proporcional: la campana se ensancha al subir la ganancia y se estrecha al bajarla
         // (x2.2 de Q en -12 dB, /2.2 en +12 dB; igual a 0 dB).
-        if ((b == Bell1 || b == Bell2) && apvts.getRawParameterValue (propQId)->load() > 0.5f)
+        if (bell && apvts.getRawParameterValue (propQId)->load() > 0.5f)
             q *= std::exp (-0.066f * g);
         const float gain = juce::Decibels::decibelsToGain (g);
-        switch (b)
-        {
-            case LowShelf:  bf.stage[0] = Coeffs::makeLowShelf  (sampleRate, f, q, gain); break;
-            case HighShelf: bf.stage[0] = Coeffs::makeHighShelf (sampleRate, f, q, gain); break;
-            default:        bf.stage[0] = Coeffs::makePeakFilter (sampleRate, f, q, gain); break;
-        }
+        if (bell)               bf.stage[0] = Coeffs::makePeakFilter (sampleRate, f, q, gain);
+        else if (b == LowShelf) bf.stage[0] = Coeffs::makeLowShelf   (sampleRate, f, q, gain);
+        else                    bf.stage[0] = Coeffs::makeHighShelf  (sampleRate, f, q, gain);
         return bf;
     }
 
