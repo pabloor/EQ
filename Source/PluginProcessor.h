@@ -101,9 +101,10 @@ namespace EQ
 
         const float g = apvts.getRawParameterValue (gainId (b))->load();
         float q = apvts.getRawParameterValue (qId (b))->load();
-        // Q proporcional (estilo EQ analógico): la campana se estrecha al aumentar la ganancia.
+        // Q proporcional: la campana se ensancha al subir la ganancia y se estrecha al bajarla
+        // (x2.2 de Q en -12 dB, /2.2 en +12 dB; igual a 0 dB).
         if ((b == Bell1 || b == Bell2) && apvts.getRawParameterValue (propQId)->load() > 0.5f)
-            q *= 1.0f + 0.1f * std::abs (g);
+            q *= std::exp (-0.066f * g);
         const float gain = juce::Decibels::decibelsToGain (g);
         switch (b)
         {
