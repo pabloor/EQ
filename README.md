@@ -15,7 +15,7 @@ JUCE se descarga solo la primera vez. Los resultados quedan en `build/MedidoresE
 
 Para instalar el AU: copia `Medidores EQ.component` a `~/Library/Audio/Plug-Ins/Components/` y, si el DAW no lo ve, ejecuta `killall -9 AudioComponentRegistrar`. Prueba la validación con `auval -v aufx Meq1 Polv`.
 
-El workflow `.github/workflows/build-plugin.yml` compila en un runner de macOS y deja los binarios como artefacto. Sin firmar: la primera vez hay que quitar la cuarentena con `xattr -dr com.apple.quarantine "Medidores EQ.component"`.
+El workflow `.github/workflows/build-plugin.yml` se lanza solo a mano (Actions → Run workflow), porque los minutos de macOS cuentan x10 en repos privados. Por defecto compila solo para Apple Silicon (marca «universal» para añadir Intel), usa ccache y deja los ZIP de AU y VST3 como artefacto. Sin firmar: la primera vez hay que quitar la cuarentena con `xattr -dr com.apple.quarantine "Medidores EQ.component"`.
 
 ## Estado
 

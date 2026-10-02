@@ -1,17 +1,35 @@
 name: Construir plugin Medidores EQ
+# Solo a mano (pestaña Actions → Run workflow): los minutos de macOS cuentan x10.
 on:
   workflow_dispatch:
-  push:
-    paths: ['Source/**', 'CMakeLists.txt', '.github/workflows/build-plugin.yml']
+    inputs:
+      universal:
+        description: 'Compilar también para Intel (tarda más)'
+        type: boolean
+        default: false
+concurrency:
+  group: build-plugin
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      ARCHS: ${{ inputs.universal && 'arm64;x86_64' || 'arm64' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ env.ARCHS }}
+          max-size: 500M
       - name: Configurar
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
-      - name: Compilar
-        run: cmake --build build --config Release --parallel
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          "-DCMAKE_OSX_ARCHITECTURES=$ARCHS"
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
+      - name: Compilar (solo AU y VST3)
+        run: cmake --build build --config Release --parallel --target MedidoresEQ_AU MedidoresEQ_VST3
       - name: Validar el Audio Unit
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
@@ -27,3 +45,4 @@ jobs:
         with:
           name: MedidoresEQ
           path: MedidoresEQ-*.zip
+          retention-days: 14
