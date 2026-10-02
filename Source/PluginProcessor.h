@@ -31,6 +31,7 @@ namespace EQ
     inline juce::String chId    (int b) { return juce::String (bands[b].id) + "_ch"; }
     inline juce::String typeId  (int b) { return juce::String (bands[b].id) + "_type"; }
     inline bool hasType (int b) { return b == LowShelf || b == HighShelf; }   // activado = campana en vez de shelf
+    inline const char* inId = "in_gain";
     inline const char* outId = "out_gain";
     inline const char* driveId = "drive";
     inline const char* characterId = "character";
@@ -170,7 +171,7 @@ private:
     Filter filters[EQ::NumBands][EQ::MaxStages][2];   // [banda][etapa][canal]
     int numStages[EQ::NumBands] {};
     std::array<float, 6> lastParams[EQ::NumBands] {};  // para recalcular coeficientes solo si algo cambia
-    juce::dsp::Gain<float> outGain;
+    juce::dsp::Gain<float> inGain, outGain;
 
     // Saturación analógica (cinta/válvula) con sobremuestreo 2x.
     juce::dsp::Oversampling<float> oversampler { 2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false };

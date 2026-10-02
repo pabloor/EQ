@@ -104,7 +104,7 @@ private:
     juce::TextButton typeButton[EQ::NumBands];   // shelf -> campana (solo en los shelves)
     std::unique_ptr<ComboAttachment> slopeAttachments[EQ::NumBands], placementAttachments[EQ::NumBands];
     std::unique_ptr<ButtonAttachment> typeAttachments[EQ::NumBands];
-    Knob outKnob, driveKnob;
+    Knob inKnob, outKnob, driveKnob;
     juce::ComboBox characterBox;
     std::unique_ptr<ComboAttachment> characterAttachment;
     juce::ToggleButton propQButton { "Q proporcional" };

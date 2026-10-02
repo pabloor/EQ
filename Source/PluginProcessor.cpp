@@ -62,6 +62,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout MedidoresEQAudioProcessor::c
         ParameterID { EQ::propQId, 1 }, "Q proporcional", true));
 
     layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { EQ::inId, 1 }, "Entrada",
+        NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
+        AudioParameterFloatAttributes().withLabel ("dB")));
+
+    layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { EQ::outId, 1 }, "Salida",
         NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
         AudioParameterFloatAttributes().withLabel ("dB")));
@@ -91,6 +96,8 @@ void MedidoresEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
             for (auto& f : stage) f.prepare (spec);
 
     juce::dsp::ProcessSpec outSpec { sampleRate, (juce::uint32) samplesPerBlock, (juce::uint32) getTotalNumOutputChannels() };
+    inGain.prepare (outSpec);
+    inGain.setRampDurationSeconds (0.02);
     outGain.prepare (outSpec);
     outGain.setRampDurationSeconds (0.02);
 }
@@ -117,6 +124,7 @@ void MedidoresEQAudioProcessor::updateFilters (bool force)
                 filters[b][s][ch].coefficients = bf.stage[s];
     }
 
+    inGain.setGainDecibels (apvts.getRawParameterValue (EQ::inId)->load());
     outGain.setGainDecibels (apvts.getRawParameterValue (EQ::outId)->load());
 }
 
@@ -168,8 +176,15 @@ void MedidoresEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
             peaks[ch].store (juce::jmax (peaks[ch].load(), buffer.getMagnitude (ch, 0, buffer.getNumSamples())));
     };
 
-    measure (inPeak);
     updateFilters (false);
+
+    // Ganancia de entrada antes de todo; el medidor de entrada mide ya con ella aplicada (lo que llega al EQ).
+    {
+        juce::dsp::AudioBlock<float> inBlock (buffer);
+        juce::dsp::ProcessContextReplacing<float> inCtx (inBlock);
+        inGain.process (inCtx);
+    }
+    measure (inPeak);
 
     for (int b = 0; b < EQ::NumBands; ++b) processBand (buffer, b);
 

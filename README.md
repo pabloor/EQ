@@ -2,6 +2,7 @@
 
 Ecualizador de 6 bandas hecho con [JUCE](https://juce.com): paso alto, shelf de graves, dos campanas, shelf de agudos y paso bajo, con ganancia de compensación de salida (±12 dB).
 
+- **Entrada y salida:** ganancia de entrada (antes del EQ) y de salida (después de la saturación), de ±12 dB cada una. El medidor de entrada mide ya con la ganancia de entrada aplicada.
 - **Shelves conmutables:** los shelves de graves y agudos pueden pasar a campana con el botón *Campana*.
 - **Pendiente ajustable:** los pasos alto y bajo tienen 6, 12, 24 o 48 dB/octava (Butterworth).
 - **Mid/Side por banda:** cada banda actúa sobre el estéreo, solo sobre el Mid o solo sobre el Side. Si hay bandas en Mid/Side, la curva muestra la respuesta de cada uno.

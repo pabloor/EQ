@@ -354,13 +354,14 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
         }
         addCombo (placementBox[b], placementAttachments[b], EQ::chId (b), EQ::placementNames());
     }
-    addKnob (outKnob, EQ::outId, "Compensación", " dB");
+    addKnob (inKnob, EQ::inId, "Entrada", " dB");
+    addKnob (outKnob, EQ::outId, "Salida", " dB");
     addKnob (driveKnob, EQ::driveId, "Drive", " %");
     addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
     propQAttachment = std::make_unique<ButtonAttachment> (proc.apvts, EQ::propQId, propQButton);
     addAndMakeVisible (propQButton);
 
-    setSize (900, 690);
+    setSize (960, 690);
 }
 
 void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, const juce::String& text, const juce::String& suffix)
@@ -473,7 +474,7 @@ void MedidoresEQAudioProcessorEditor::resized()
     curve.setBounds (curveRow);
     area.removeFromTop (8);
 
-    const int colW = area.getWidth() / (EQ::NumBands + 1);
+    const int colW = area.getWidth() / (EQ::NumBands + 2);   // bandas + columna de ganancias + columna de carácter
     auto toggleRow = area.removeFromTop (26);
     for (int b = 0; b < EQ::NumBands; ++b)
         toggles[b].setBounds (toggleRow.getX() + b * colW + 6, toggleRow.getY(), colW - 6, toggleRow.getHeight());
@@ -505,9 +506,11 @@ void MedidoresEQAudioProcessorEditor::resized()
         }
     }
 
-    const int lastCol = area.getX() + EQ::NumBands * colW;
-    place (outKnob, { lastCol, area.getY(), colW, rowH });
-    place (driveKnob, { lastCol, area.getY() + rowH, colW, rowH });
-    characterBox.setBounds (lastCol + 8, area.getY() + 2 * rowH + 6, colW - 16, 24);
-    propQButton.setBounds (lastCol + 8, area.getY() + 2 * rowH + 38, colW - 8, 24);
+    const int gainCol = area.getX() + EQ::NumBands * colW;
+    const int characterCol = gainCol + colW;
+    place (inKnob, { gainCol, area.getY(), colW, rowH });
+    place (outKnob, { gainCol, area.getY() + rowH, colW, rowH });
+    place (driveKnob, { characterCol, area.getY(), colW, rowH });
+    characterBox.setBounds (characterCol + 8, area.getY() + rowH + 6, colW - 16, 24);
+    propQButton.setBounds (characterCol + 8, area.getY() + rowH + 38, colW - 8, 24);
 }
