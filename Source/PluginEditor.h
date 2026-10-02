@@ -95,6 +95,8 @@ public:
     void resized() override;
 
     ResponseCurve& getCurve() { return curve; }
+    void setDynamicsOpen (bool open);   // despliega o recoge los ajustes de dinámica (cambia el tamaño de la ventana)
+    static int windowHeight (bool dynamicsOpen);
 
 private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -144,6 +146,8 @@ private:
     juce::ComboBox styleBox;
     std::unique_ptr<ComboAttachment> styleAttachment;
     juce::Label characterLabel, styleLabel;
+    juce::TextButton dynExpandButton;
+    bool dynOpen = false;
 
     // EQ dinámico: botón por banda, con su medidor, umbral, ratio, ataque y release.
     juce::ToggleButton dynToggle[EQ::NumBands];

@@ -30,8 +30,10 @@ int main (int argc, char** argv)
     setParam (proc, "in_gain", 2.0f);
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
-    if (auto* e = dynamic_cast<MedidoresEQAudioProcessorEditor*> (editor.get()))
-        e->getCurve().setFocusBand (EQ::Bell2);   // muestra las asas de Q de la banda dinámica
+    auto* e = dynamic_cast<MedidoresEQAudioProcessorEditor*> (editor.get());
+    if (e == nullptr) return 3;
+    e->getCurve().setFocusBand (EQ::Bell2);   // muestra las asas de Q de la banda dinámica
+    e->setDynamicsOpen (true);
 
     // Audio de ejemplo (ruido filtrado + una banda a 3,2 kHz) para llenar el analizador y los medidores.
     juce::Random random (1234);
@@ -56,10 +58,22 @@ int main (int argc, char** argv)
         juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
     }
 
-    auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
-    outFile.deleteFile();
-    juce::FileOutputStream stream (outFile);
-    if (! stream.openedOk()) return 1;
-    juce::PNGImageFormat png;
-    return png.writeImageToStream (image, stream) ? 0 : 2;
+    auto save = [] (juce::Image image, const juce::File& file)
+    {
+        file.deleteFile();
+        juce::FileOutputStream stream (file);
+        if (! stream.openedOk()) return false;
+        juce::PNGImageFormat png;
+        return png.writeImageToStream (image, stream);
+    };
+
+    // 1) ajustes de dinámica desplegados; 2) ventana compacta
+    bool ok = save (editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f), outFile);
+
+    e->setDynamicsOpen (false);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (80);
+    ok = save (editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f),
+               outFile.getParentDirectory().getChildFile (outFile.getFileNameWithoutExtension() + "-compacto.png")) && ok;
+
+    return ok ? 0 : 2;
 }

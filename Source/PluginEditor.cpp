@@ -138,14 +138,14 @@ void ResponseCurve::paint (juce::Graphics& g)
 {
     const auto area = getLocalBounds().toFloat();
     const float R = rangeDb();
-    g.setColour (juce::Colour (0xff15181d));
+    g.setColour (Theme::screen);
     g.fillRoundedRectangle (area, 6.0f);
 
     // Rejilla de frecuencia
     g.setFont (10.0f);
     for (float f : { 50.f, 100.f, 200.f, 500.f, 1000.f, 2000.f, 5000.f, 10000.f })
     {
-        g.setColour (juce::Colours::white.withAlpha (0.07f));
+        g.setColour (Theme::text.withAlpha (0.07f));
         g.drawVerticalLine ((int) xForFreq (f), 0.0f, area.getHeight());
         g.setColour (Theme::muted);
         g.drawText (f >= 1000.f ? juce::String (f / 1000.f) + "k" : juce::String (f),
@@ -157,7 +157,7 @@ void ResponseCurve::paint (juce::Graphics& g)
     for (int k = -1; k <= 1; ++k)
     {
         const float d = (float) k * step;
-        g.setColour (juce::Colours::white.withAlpha (k == 0 ? 0.25f : 0.07f));
+        g.setColour (Theme::text.withAlpha (k == 0 ? 0.25f : 0.07f));
         g.drawHorizontalLine ((int) yForDb (d), 0.0f, area.getWidth());
         g.setColour (Theme::muted);
         g.drawText ((d > 0 ? "+" : "") + juce::String ((int) d), 4, (int) yForDb (d) - 12, 30, 12, juce::Justification::left);
@@ -183,7 +183,7 @@ void ResponseCurve::paint (juce::Graphics& g)
         {
             sp.lineTo (sp.getCurrentPosition().x, area.getHeight());
             sp.closeSubPath();
-            g.setColour (juce::Colours::white.withAlpha (0.11f));
+            g.setColour (Theme::text.withAlpha (0.10f));
             g.fillPath (sp);
         }
     }
@@ -249,18 +249,20 @@ void ResponseCurve::paint (juce::Graphics& g)
             const float db = juce::jlimit (-R, R, juce::Decibels::gainToDecibels ((float) mag, -60.0f));
             if (i == 0) path.startNewSubPath ((float) i, yForDb (db)); else path.lineTo ((float) i, yForDb (db));
         }
+        g.setColour (colour.withAlpha (0.14f));   // resplandor, como un trazo fosforescente
+        g.strokePath (path, juce::PathStrokeType (7.0f));
         g.setColour (colour);
         g.strokePath (path, juce::PathStrokeType (2.0f));
     };
 
     if (anyMidSide)
     {
-        drawResponse (1, juce::Colour (0xff4fc3f7));   // Mid
-        drawResponse (2, juce::Colour (0xffffb74d));   // Side
+        drawResponse (1, Theme::accent);   // Mid
+        drawResponse (2, juce::Colour (0xff4fa6a8));   // Side
         g.setFont (11.0f);
-        g.setColour (juce::Colour (0xff4fc3f7));
+        g.setColour (Theme::accent);
         g.drawText ("Mid", 40, 6, 40, 14, juce::Justification::left);
-        g.setColour (juce::Colour (0xffffb74d));
+        g.setColour (juce::Colour (0xff4fa6a8));
         g.drawText ("Side", 76, 6, 40, 14, juce::Justification::left);
     }
     else
@@ -427,7 +429,7 @@ void ResponseCurve::mouseWheelMove (const juce::MouseEvent& e, const juce::Mouse
 void DynMeter::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
-    g.setColour (juce::Colour (0xff15181d));
+    g.setColour (Theme::screen);
     g.fillRoundedRectangle (r, 3.0f);
 
     const bool on = proc.apvts.getRawParameterValue (EQ::dynId (band))->load() > 0.5f
@@ -474,7 +476,7 @@ void LevelMeter::timerCallback()
 void LevelMeter::paint (juce::Graphics& g)
 {
     auto area = getLocalBounds().toFloat();
-    g.setColour (juce::Colour (0xff15181d));
+    g.setColour (Theme::screen);
     g.fillRoundedRectangle (area, 6.0f);
 
     g.setColour (Theme::text);
@@ -491,26 +493,26 @@ void LevelMeter::paint (juce::Graphics& g)
     const float minDb = -60.0f, maxDb = 6.0f;
     auto yFor = [&] (float db) { return body.getBottom() - body.getHeight() * (juce::jlimit (minDb, maxDb, db) - minDb) / (maxDb - minDb); };
 
-    // Barras
+    // Barras segmentadas, como un medidor de LEDs de un equipo analógico
+    const float segH = 3.0f, segGap = 1.5f;
+    const int numSeg = juce::jmax (1, (int) (body.getHeight() / (segH + segGap)));
     for (int ch = 0; ch < 2; ++ch)
     {
-        const juce::Rectangle<float> bar (body.getX() + (float) ch * (barW + 4.0f), body.getY(), barW, body.getHeight());
-        g.setColour (juce::Colours::black.withAlpha (0.45f));
-        g.fillRect (bar);
-
-        auto fill = bar.withTop (yFor (level[ch]));
-        juce::ColourGradient grad (juce::Colour (0xffef5350), bar.getX(), bar.getY(),
-                                   juce::Colour (0xff2e7d4f), bar.getX(), bar.getBottom(), false);
-        grad.addColour (0.09, juce::Colour (0xffef5350));   // por encima de 0 dB
-        grad.addColour (0.14, juce::Colour (0xffffee58));   // ~ -3 dB
-        grad.addColour (0.30, juce::Colour (0xff66bb6a));
-        g.setGradientFill (grad);
-        g.fillRect (fill);
+        const float bx = body.getX() + (float) ch * (barW + 4.0f);
+        for (int s = 0; s < numSeg; ++s)
+        {
+            const float db = minDb + (maxDb - minDb) * ((float) s + 0.5f) / (float) numSeg;
+            const float sy = body.getBottom() - (float) (s + 1) * (segH + segGap) + segGap;
+            const bool lit = db <= level[ch];
+            const auto base = db > 0.0f ? juce::Colour (0xffe5533d) : (db > -6.0f ? juce::Colour (0xfff0a640) : juce::Colour (0xff9db55e));
+            g.setColour (lit ? base : Theme::text.withAlpha (0.06f));
+            g.fillRect (bx, sy, barW, segH);
+        }
 
         if (hold[ch] > minDb)   // retención de pico
         {
-            g.setColour (juce::Colours::white);
-            g.fillRect (bar.getX(), yFor (hold[ch]) - 1.0f, barW, 2.0f);
+            g.setColour (Theme::text);
+            g.fillRect (bx, yFor (hold[ch]) - 1.0f, barW, 2.0f);
         }
     }
 
@@ -519,7 +521,7 @@ void LevelMeter::paint (juce::Graphics& g)
     for (float db : { 6.0f, 0.0f, -6.0f, -12.0f, -24.0f, -36.0f, -48.0f, -60.0f })
     {
         const float y = yFor (db);
-        g.setColour (juce::Colours::white.withAlpha (db == 0.0f ? 0.45f : 0.14f));
+        g.setColour (Theme::text.withAlpha (db == 0.0f ? 0.4f : 0.10f));
         g.drawHorizontalLine ((int) y, body.getX(), body.getRight());
         g.setColour (Theme::muted);
         g.drawText (juce::String ((int) db), scale.withY (y - 6.0f).withHeight (12.0f), juce::Justification::centredRight);
@@ -547,9 +549,9 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
     addCombo (analyzerBox, analyzerAttachment, EQ::analyzerId, EQ::analyzerNames());
     addCombo (speedBox, speedAttachment, EQ::analyzerSpeedId, EQ::speedNames());
     addCombo (rangeBox, rangeAttachment, EQ::rangeId, EQ::rangeNames());
-    analyzerLabel.setText ("Analizador", juce::dontSendNotification);
-    speedLabel.setText ("Velocidad", juce::dontSendNotification);
-    rangeLabel.setText ("Rango", juce::dontSendNotification);
+    analyzerLabel.setText (juce::String ("Analizador").toUpperCase(), juce::dontSendNotification);
+    speedLabel.setText (juce::String ("Velocidad").toUpperCase(), juce::dontSendNotification);
+    rangeLabel.setText (juce::String ("Rango").toUpperCase(), juce::dontSendNotification);
     for (auto* l : { &analyzerLabel, &speedLabel, &rangeLabel })
     {
         l->setJustificationType (juce::Justification::centredRight);
@@ -616,20 +618,48 @@ MedidoresEQAudioProcessorEditor::MedidoresEQAudioProcessorEditor (MedidoresEQAud
 
     addKnob (inKnob, EQ::inId, "Entrada", 70, Theme::accent, EQ::utf8 ("Ganancia de entrada, antes del EQ."));
     addKnob (outKnob, EQ::outId, "Salida", 70, Theme::accent, EQ::utf8 ("Ganancia de salida, después de la saturación."));
-    addKnob (driveKnob, EQ::driveId, "Drive", 70, juce::Colour (0xffffb74d), EQ::utf8 ("Cantidad de saturación (0 % = limpio)."));
+    addKnob (driveKnob, EQ::driveId, "Drive", 70, juce::Colour (0xffe8a23c), EQ::utf8 ("Cantidad de saturación (0 % = limpio)."));
     addCombo (characterBox, characterAttachment, EQ::characterId, EQ::characterNames());
     addCombo (styleBox, styleAttachment, EQ::styleId, EQ::styleNames());
     characterBox.setTooltip (EQ::utf8 ("Tipo de saturación: limpio, cinta o válvula."));
     styleBox.setTooltip (EQ::utf8 ("Cómo cambia la Q de las campanas con la ganancia."));
-    characterLabel.setText (EQ::utf8 ("Carácter"), juce::dontSendNotification);
-    styleLabel.setText ("Estilo de curva", juce::dontSendNotification);
+    characterLabel.setText (EQ::utf8 ("Car\u00e1cter").toUpperCase(), juce::dontSendNotification);
+    styleLabel.setText (juce::String ("Estilo de curva").toUpperCase(), juce::dontSendNotification);
     for (auto* l : { &characterLabel, &styleLabel })
     {
         l->setJustificationType (juce::Justification::centred);
         addAndMakeVisible (l);
     }
 
-    setSize (980, 840);
+    // Los ajustes de la dinámica (umbral, ratio, ataque, release) se despliegan: la ventana crece al abrirlos.
+    dynOpen = (bool) proc.apvts.state.getProperty ("dynOpen", false);
+    dynExpandButton.setClickingTogglesState (false);
+    dynExpandButton.setTooltip (EQ::utf8 ("Muestra u oculta los ajustes de la din\u00e1mica de cada banda. La ventana se agranda al desplegarlos."));
+    dynExpandButton.onClick = [this] { setDynamicsOpen (! dynOpen); };
+    addAndMakeVisible (dynExpandButton);
+    setDynamicsOpen (dynOpen);
+}
+
+int MedidoresEQAudioProcessorEditor::windowHeight (bool dynamicsOpen)
+{
+    return dynamicsOpen ? 840 : 702;   // 190 px de ajustes de dinámica frente a 52 px de la fila compacta
+}
+
+void MedidoresEQAudioProcessorEditor::setDynamicsOpen (bool open)
+{
+    dynOpen = open;
+    proc.apvts.state.setProperty ("dynOpen", open, nullptr);
+    dynExpandButton.setButtonText (open ? EQ::utf8 ("\u25be  Ocultar ajustes de din\u00e1mica") : EQ::utf8 ("\u25b8  Ajustes de din\u00e1mica"));
+
+    for (int b = 0; b < EQ::NumBands; ++b)
+        if (EQ::hasDyn (b))
+            for (auto* k : { &thrKnob[b], &ratioKnob[b], &attackKnob[b], &releaseKnob[b] })
+            {
+                k->slider.setVisible (open);
+                k->label.setVisible (open);
+            }
+
+    setSize (980, windowHeight (open));
 }
 
 MedidoresEQAudioProcessorEditor::~MedidoresEQAudioProcessorEditor()
@@ -648,7 +678,7 @@ void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, 
     k.slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
     k.slider.setColour (juce::Slider::textBoxTextColourId, Theme::text);
     k.slider.setTooltip (tip + EQ::utf8 (" Doble clic: valor por defecto."));
-    k.label.setText (text, juce::dontSendNotification);
+    k.label.setText (text.toUpperCase(), juce::dontSendNotification);
     k.label.setJustificationType (juce::Justification::centred);
     k.attachment = std::make_unique<SliderAttachment> (proc.apvts, id, k.slider);
     if (auto* p = proc.apvts.getParameter (id))
@@ -733,27 +763,31 @@ void MedidoresEQAudioProcessorEditor::askDeletePreset()
 //==============================================================================
 void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (Theme::background);
+    g.setGradientFill (juce::ColourGradient (Theme::backgroundTop, 0.0f, 0.0f, Theme::background, 0.0f, (float) getHeight(), false));
+    g.fillAll();
+
+    auto drawPanel = [&g] (juce::Rectangle<float> r, juce::Colour strip)
+    {
+        g.setGradientFill (juce::ColourGradient (Theme::panelTop, r.getX(), r.getY(), Theme::panel, r.getX(), r.getBottom(), false));
+        g.fillRoundedRectangle (r, 8.0f);
+        g.setColour (juce::Colour (0xff0d0b08));
+        g.drawRoundedRectangle (r, 8.0f, 1.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.06f));   // brillo del canto superior
+        g.drawLine (r.getX() + 8.0f, r.getY() + 1.5f, r.getRight() - 8.0f, r.getY() + 1.5f, 1.0f);
+        g.setColour (strip);
+        g.fillRoundedRectangle (r.getX() + 14.0f, r.getY() + 5.0f, r.getWidth() - 28.0f, 3.0f, 1.5f);
+    };
 
     for (int b = 0; b < EQ::NumBands; ++b)
-    {
-        const auto r = bandPanel[b].toFloat();
-        g.setColour (Theme::panel);
-        g.fillRoundedRectangle (r, 8.0f);
-        g.setColour (EQ::bandColours[b]);
-        g.fillRoundedRectangle (r.getX() + 10.0f, r.getY(), r.getWidth() - 20.0f, 3.0f, 1.5f);
-    }
+        drawPanel (bandPanel[b].toFloat(), EQ::bandColours[b]);
 
     g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
     for (auto* panel : { &gainPanel, &characterPanel })
     {
-        g.setColour (Theme::panel);
-        g.fillRoundedRectangle (panel->toFloat(), 8.0f);
-        g.setColour (Theme::accent);
-        g.fillRoundedRectangle ((float) panel->getX() + 10.0f, (float) panel->getY(), (float) panel->getWidth() - 20.0f, 3.0f, 1.5f);
+        drawPanel (panel->toFloat(), Theme::accent);
         g.setColour (Theme::text);
-        g.drawText (panel == &gainPanel ? EQ::utf8 ("Ganancia") : EQ::utf8 ("Saturación"),
-                    panel->getX(), panelTitleY, panel->getWidth(), 26, juce::Justification::centred);
+        g.drawText ((panel == &gainPanel ? EQ::utf8 ("Ganancia") : EQ::utf8 ("Saturaci\u00f3n")).toUpperCase(),
+                    panel->getX(), panelTitleY + 4, panel->getWidth(), 22, juce::Justification::centred);
     }
 }
 
@@ -800,7 +834,7 @@ void MedidoresEQAudioProcessorEditor::resized()
             typeButton[b].setBounds (comboRow.getX() + b * colW + 10, comboRow.getY() + 4, colW - 20, 24);
     }
 
-    auto dynRow = area.removeFromBottom (190);   // botón Dinámica + medidor + 4 knobs (umbral, ratio, ataque, release) en 2x2
+    auto dynRow = area.removeFromBottom (dynOpen ? 190 : 52);   // botón Dinámica + medidor (+ 4 knobs en 2x2 al desplegar)
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
     {
@@ -830,6 +864,7 @@ void MedidoresEQAudioProcessorEditor::resized()
 
     const int gainCol = area.getX() + EQ::NumBands * colW;
     const int characterCol = gainCol + colW;
+    dynExpandButton.setBounds (gainCol + 10, dynRow.getY() + 4, 2 * colW - 20, 30);
     place (inKnob,    { gainCol, area.getY(), colW, rowH });
     place (outKnob,   { gainCol, area.getY() + rowH, colW, rowH });
     place (driveKnob, { characterCol, area.getY(), colW, rowH });

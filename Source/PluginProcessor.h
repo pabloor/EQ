@@ -65,8 +65,8 @@ namespace EQ
     inline bool isViewParam (const juce::String& id) { return id == analyzerId || id == analyzerSpeedId || id == rangeId; }
 
     inline const juce::Colour bandColours[NumBands] = {
-        juce::Colour (0xffef5350), juce::Colour (0xffffa726), juce::Colour (0xff66bb6a),
-        juce::Colour (0xff42a5f5), juce::Colour (0xffab47bc), juce::Colour (0xff26c6da) };
+        juce::Colour (0xffd9603f), juce::Colour (0xffe8a23c), juce::Colour (0xff9db55e),
+        juce::Colour (0xff4fa6a8), juce::Colour (0xffb07fc4), juce::Colour (0xff6f9bdb) };
 
     using Coeffs = juce::dsp::IIR::Coefficients<float>;
 
