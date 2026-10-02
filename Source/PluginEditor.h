@@ -157,7 +157,7 @@ private:
 
     // Paneles de fondo (se calculan en resized y se dibujan en paint)
     juce::Rectangle<int> bandPanel[EQ::NumBands], characterPanel, inPanel, outPanel;
-    int panelTitleY = 0;
+    int panelTitleY = 0, filterSplitY = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedidoresEQAudioProcessorEditor)
 };

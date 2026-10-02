@@ -662,7 +662,7 @@ void MedidoresEQAudioProcessorEditor::setDynamicsOpen (bool open)
                 k->label.setVisible (open);
             }
 
-    setSize (1040, windowHeight (open));
+    setSize (960, windowHeight (open));
 }
 
 MedidoresEQAudioProcessorEditor::~MedidoresEQAudioProcessorEditor()
@@ -782,7 +782,18 @@ void MedidoresEQAudioProcessorEditor::paint (juce::Graphics& g)
     };
 
     for (int b = 0; b < EQ::NumBands; ++b)
-        drawPanel (bandPanel[b].toFloat(), EQ::bandColours[b]);
+        if (! bandPanel[b].isEmpty())
+            drawPanel (bandPanel[b].toFloat(), EQ::bandColours[b]);
+
+    // Columna de filtros: segunda franja (paso bajo) con su separador
+    if (! bandPanel[EQ::HighPass].isEmpty())
+    {
+        const auto r = bandPanel[EQ::HighPass].toFloat();
+        g.setColour (Theme::outline.withAlpha (0.7f));
+        g.drawLine (r.getX() + 10.0f, (float) filterSplitY, r.getRight() - 10.0f, (float) filterSplitY, 1.0f);
+        g.setColour (EQ::bandColours[EQ::LowPass]);
+        g.fillRoundedRectangle (r.getX() + 14.0f, (float) filterSplitY + 4.0f, r.getWidth() - 28.0f, 3.0f, 1.5f);
+    }
 
     g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
     const juce::String titles[] = { EQ::utf8 ("CAR\u00c1CTER"), "ENTRADA", "SALIDA" };
@@ -821,19 +832,15 @@ void MedidoresEQAudioProcessorEditor::resized()
     curve.setBounds (curveRow);
     area.removeFromTop (8);
 
-    const int colW = area.getWidth() / (EQ::NumBands + 3);   // bandas + carácter + entrada + salida
+    // Columnas (de izquierda a derecha): ENTRADA | FILTROS (paso alto arriba, paso bajo abajo) | Graves | Medio 1 | Medio 2 | Agudos | CARÁCTER | SALIDA
+    constexpr int numCols = 8;
+    const int colW = area.getWidth() / numCols;
+    const int x0 = area.getX();
+    auto colX = [&] (int col) { return x0 + col * colW; };
+    const int bandCol[EQ::NumBands] = { 1, 2, 3, 4, 5, 1 };   // paso alto y paso bajo comparten columna
+
     auto toggleRow = area.removeFromTop (26);
-    for (int b = 0; b < EQ::NumBands; ++b)
-        toggles[b].setBounds (toggleRow.getX() + b * colW + 8, toggleRow.getY() + 2, colW - 12, toggleRow.getHeight());
-
     auto comboRow = area.removeFromBottom (58);
-    for (int b = 0; b < EQ::NumBands; ++b)
-    {
-        placementBox[b].setBounds (comboRow.getX() + b * colW + 10, comboRow.getY() + 32, colW - 20, 24);
-        if (EQ::hasType (b))
-            typeButton[b].setBounds (comboRow.getX() + b * colW + 10, comboRow.getY() + 4, colW - 20, 24);
-    }
-
     auto dynRow = area.removeFromBottom (dynOpen ? 190 : 52);   // botón Dinámica + medidor (+ 4 knobs en 2x2 al desplegar)
     const int rowH = area.getHeight() / 3;
     auto place = [] (Knob& k, juce::Rectangle<int> r)
@@ -842,30 +849,47 @@ void MedidoresEQAudioProcessorEditor::resized()
         k.slider.setBounds (r);
     };
 
+    const int colTop = toggleRow.getY(), colBottom = comboRow.getBottom();
+
     for (int b = 0; b < EQ::NumBands; ++b)
     {
-        place (knobs[b][0], { area.getX() + b * colW, area.getY(), colW, rowH });
-        if (EQ::isCut (b))
-            slopeBox[b].setBounds (area.getX() + b * colW + 10, area.getY() + rowH + rowH / 2 - 12, colW - 20, 24);
-        else
-        {
-            place (knobs[b][1], { area.getX() + b * colW, area.getY() + rowH, colW, rowH });
-            place (knobs[b][2], { area.getX() + b * colW, area.getY() + 2 * rowH, colW, rowH });
+        const int x = colX (bandCol[b]);
 
-            const int x = dynRow.getX() + b * colW;
-            dynToggle[b].setBounds (x + 8, dynRow.getY() + 2, colW - 12, 24);
-            dynMeter[b]->setBounds (x + 10, dynRow.getY() + 28, colW - 20, 16);
-            place (thrKnob[b],     { x,            dynRow.getY() + 48,  colW / 2, 70 });
-            place (ratioKnob[b],   { x + colW / 2, dynRow.getY() + 48,  colW / 2, 70 });
-            place (attackKnob[b],  { x,            dynRow.getY() + 120, colW / 2, 70 });
-            place (releaseKnob[b], { x + colW / 2, dynRow.getY() + 120, colW / 2, 70 });
+        if (EQ::isCut (b))
+        {
+            // Paso alto (arriba) y paso bajo (abajo) en la misma columna: lámpara, frecuencia, pendiente y canal.
+            const int blockH = (colBottom - colTop) / 2;
+            const int top = colTop + (b == EQ::LowPass ? blockH + 6 : 0);
+            const int avail = blockH - (b == EQ::LowPass ? 6 : 0);
+            const int knobH = juce::jmin (110, avail - 26 - 2 * 24 - 12);
+
+            toggles[b].setBounds (x + 8, top + 2, colW - 12, 26);
+            place (knobs[b][0], { x, top + 30, colW, knobH });
+            slopeBox[b].setBounds (x + 10, top + 30 + knobH + 4, colW - 20, 24);
+            placementBox[b].setBounds (x + 10, top + 30 + knobH + 32, colW - 20, 24);
+            continue;
         }
+
+        toggles[b].setBounds (x + 8, toggleRow.getY() + 2, colW - 12, toggleRow.getHeight());
+        place (knobs[b][0], { x, area.getY(), colW, rowH });
+        place (knobs[b][1], { x, area.getY() + rowH, colW, rowH });
+        place (knobs[b][2], { x, area.getY() + 2 * rowH, colW, rowH });
+
+        dynToggle[b].setBounds (x + 8, dynRow.getY() + 2, colW - 12, 24);
+        dynMeter[b]->setBounds (x + 10, dynRow.getY() + 28, colW - 20, 16);
+        place (thrKnob[b],     { x,            dynRow.getY() + 48,  colW / 2, 70 });
+        place (ratioKnob[b],   { x + colW / 2, dynRow.getY() + 48,  colW / 2, 70 });
+        place (attackKnob[b],  { x,            dynRow.getY() + 120, colW / 2, 70 });
+        place (releaseKnob[b], { x + colW / 2, dynRow.getY() + 120, colW / 2, 70 });
+
+        if (EQ::hasType (b))
+            typeButton[b].setBounds (x + 10, comboRow.getY() + 4, colW - 20, 24);
+        placementBox[b].setBounds (x + 10, comboRow.getY() + 32, colW - 20, 24);
     }
 
-    // Columnas de la derecha: CARÁCTER (saturación y estilo de curva), ENTRADA y SALIDA (knob + medidor)
-    const int characterCol = area.getX() + EQ::NumBands * colW;
-    const int inCol = characterCol + colW, outCol = inCol + colW;
-    const int bottomY = comboRow.getBottom() - 4;
+    // Columnas de los extremos y de carácter: ENTRADA (knob + medidor), CARÁCTER (saturación y curvas) y SALIDA (knob + medidor)
+    const int inCol = colX (0), characterCol = colX (6), outCol = colX (7);
+    const int bottomY = colBottom - 4;
 
     place (driveKnob, { characterCol, area.getY(), colW, rowH });
     place (mixKnob,   { characterCol, area.getY() + rowH, colW, rowH });
@@ -883,9 +907,11 @@ void MedidoresEQAudioProcessorEditor::resized()
     outMeter.setBounds (outCol + (colW - meterW) / 2, meterY, meterW, bottomY - meterY);
 
     // Paneles de fondo: de la fila de interruptores al último desplegable
-    const int panelTop = toggleRow.getY() - 3, panelBottom = comboRow.getBottom() + 3;
+    const int panelTop = colTop - 3, panelBottom = colBottom + 3;
     for (int b = 0; b < EQ::NumBands; ++b)
-        bandPanel[b] = { area.getX() + b * colW + 2, panelTop, colW - 4, panelBottom - panelTop };
+        bandPanel[b] = (b == EQ::LowPass) ? juce::Rectangle<int>()   // el paso bajo comparte el panel del paso alto
+                                          : juce::Rectangle<int> (colX (bandCol[b]) + 2, panelTop, colW - 4, panelBottom - panelTop);
+    filterSplitY = colTop + (colBottom - colTop) / 2 + 2;
     characterPanel = { characterCol + 2, panelTop, colW - 4, panelBottom - panelTop };
     inPanel        = { inCol + 2, panelTop, colW - 4, panelBottom - panelTop };
     outPanel       = { outCol + 2, panelTop, colW - 4, panelBottom - panelTop };
