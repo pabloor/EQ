@@ -643,6 +643,10 @@ void MedidoresEQAudioProcessorEditor::addKnob (Knob& k, const juce::String& id, 
     // El texto del valor (unidades y decimales) lo da el propio parámetro.
     k.slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, textBoxWidth, 18);
     k.slider.setColour (juce::Slider::rotarySliderFillColourId, colour);
+    // Caja del valor discreta (sin el borde blanco por defecto).
+    k.slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    k.slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+    k.slider.setColour (juce::Slider::textBoxTextColourId, Theme::text);
     k.slider.setTooltip (tip + EQ::utf8 (" Doble clic: valor por defecto."));
     k.label.setText (text, juce::dontSendNotification);
     k.label.setJustificationType (juce::Justification::centred);
